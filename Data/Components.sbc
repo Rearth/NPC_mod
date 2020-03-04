@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<Definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <Components>
+        <Component>
+            <Id>
+                <TypeId>Component</TypeId>
+                <SubtypeId>NPC_Component</SubtypeId>
+            </Id>
+            <DisplayName>NPC Test</DisplayName>
+            <Icon>Textures\GUI\Icons\component\construction_components_component.dds</Icon>
+            <Size>
+                <X>0.2</X>
+                <Y>0.1</Y>
+                <Z>0.1</Z>
+            </Size>
+            <Mass>150</Mass>
+            <Volume>2</Volume>
+            <MaxIntegrity>250</MaxIntegrity>
+            <DropProbability>0.5</DropProbability>
+            <Health>250</Health>
+        </Component>
+    </Components>
+</Definitions>
