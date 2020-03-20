@@ -1,4 +1,7 @@
-﻿using VRage.Game.Entity;
+﻿using Sandbox.Game.Entities;
+using Sandbox.Game.Weapons;
+using Sandbox.ModAPI;
+using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRageMath;
 
@@ -12,13 +15,14 @@ namespace NPCMod {
         private readonly MyEntitySubpart top_right_leg;
         private readonly MyEntitySubpart bottom_left_leg;
         private readonly MyEntitySubpart bottom_right_leg;
+        private readonly MyEntitySubpart gun_muzzle;
         internal readonly IMyCubeGrid grid;
         internal readonly IMySlimBlock npc;
 
         private float animProgress;
         private bool ascending = true;
         public readonly float moveSpeed;
-        private static readonly float maxAngle = 140;
+        private static readonly float maxAngle = 160;
         private static readonly float bottomExtraAngle = -0.1f;
 
         public NPCDataAnimator(IMyCubeGrid grid, IMySlimBlock npc, float moveSpeed) {
@@ -27,8 +31,13 @@ namespace NPCMod {
             this.moveSpeed = moveSpeed;
             top_left_leg = npc.FatBlock.GetSubpart("leg_top_left");
             top_right_leg = npc.FatBlock.GetSubpart("leg_top_right");
+            //gun_muzzle = npc.FatBlock.GetSubpart("muzzle_projectile");
             bottom_left_leg = top_left_leg.GetSubpart("leg_bottom_left");
             bottom_right_leg = top_right_leg.GetSubpart("leg_bottom_right");
+        }
+
+        public Vector3 getMuzzlePosition() {
+            return grid.GetPosition() + grid.WorldMatrix.Up * 1.5f + grid.WorldMatrix.Forward * 0.6f;
         }
 
         public float getSpeed(MovementMode mode) {
@@ -41,6 +50,10 @@ namespace NPCMod {
             return 0f;
         }
 
+        private float getAnimationSpeed() {
+            return grid.Physics.LinearVelocity.Length() * 0.75f;
+        }
+
         public void updateRender(MovementMode mode) {
 
             if (mode == MovementMode.Standing) {
@@ -51,7 +64,7 @@ namespace NPCMod {
                 return;
             }
 
-            var useSpeed = getSpeed(mode);
+            var useSpeed = getAnimationSpeed();
             
             if (ascending) {
                 animProgress += (1 / 60f) * useSpeed / 2;

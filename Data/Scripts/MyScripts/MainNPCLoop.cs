@@ -1,8 +1,10 @@
 ﻿﻿using System;
 using System.Collections.Generic;
-using Sandbox.Game.Entities;
+ using System.Linq;
+ using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
-using VRage.Game.Components;
+ using VRage.Game;
+ using VRage.Game.Components;
 using VRage.Game.ModAPI;
 using VRage.ModAPI;
 using VRage.Utils;
@@ -11,9 +13,10 @@ using VRageMath;
 namespace NPCMod {
     [MySessionComponentDescriptor(MyUpdateOrder.AfterSimulation)]
     public class MainNPCLoop : MySessionComponentBase {
+        
         private Boolean inited;
-        private List<NPCBasicMover> npcBasicMovers = new List<NPCBasicMover>();
-        private List<NPCBasicMover> waiting = new List<NPCBasicMover>();
+        private readonly List<NPCBasicMover> npcBasicMovers = new List<NPCBasicMover>();
+        private readonly List<NPCBasicMover> waiting = new List<NPCBasicMover>();
 
         public static int ticks = 0;
 
@@ -50,16 +53,62 @@ namespace NPCMod {
             }
         }
 
+        private void initOnce() {
+            MyAPIUtilities.Static.MessageEntered += onChatEntered;
+        }
+
+        private void onChatEntered(string text, ref bool others) {
+            MyLog.Default.WriteLine("got message: " + text);
+            var player = MyAPIGateway.Session.Player;
+            var playerID = player.IdentityId;
+            if (playerID <= 0) return;
+            var pos = player.GetPosition() + player.Character.WorldMatrix.Up;
+
+            if (text.StartsWith("/npc ally")) {
+                for (int i = 0; i < getEndInt(text); i++) {
+                    spawnNPC(playerID, Color.ForestGreen, pos);
+                }
+                MyLog.Default.WriteLine("spawned allied npc");
+                
+            } else if (text.StartsWith("/npc pirate")) {
+                var pirateID = MyAPIGateway.Session.Factions.TryGetFactionByTag("SPRT").Members.First().Value.PlayerId;
+                for (int i = 0; i < getEndInt(text); i++) {
+                    spawnNPC(pirateID, Color.MediumVioletRed, pos);
+                }
+                MyLog.Default.WriteLine("spawned enemy npc");
+            }
+        }
+
+        private static int getEndInt(String text) {
+            var parts = text.Split(' ');
+            var last = parts[parts.Length - 1];
+            return int.Parse(last);
+        }
+
+        public static IMyEntity spawnNPC(long owner, Color color, Vector3 position) {
+            var entity = NPCGridUtilities.SpawnBlock("NPC_Test", "npc_" + ticks, color, true, true, false, true, true, owner) as IMyCubeGrid;
+            
+            if (entity != null) {
+                var matrix = entity.WorldMatrix;
+                matrix.Translation = position;
+                entity.WorldMatrix = matrix;
+                entity.ChangeGridOwnership(owner, MyOwnershipShareModeEnum.None);
+            }
+
+            return entity;
+        }
+
         public override void UpdateAfterSimulation() {
             try {
                 if (!inited) {
-                    init();
+                    //init();
+                    //initOnce();
                     return;
                 }
 
                 ticks++;
                 if (ticks % 240 == 0) {
-                    init();
+                    //init();
                 }
 
                 if (ticks % 3 == 0 && waiting.Count > 0) {
@@ -79,8 +128,10 @@ namespace NPCMod {
                         continue;
                     }
 
-                    npcBasicMover.MovementTarget = target;
-                    npcBasicMover.ActiveEnemy = targetEntity;
+                    if (targetEntity != null) {
+                        npcBasicMover.addWaypoint(targetEntity);
+                    }
+                    //npcBasicMover.ActiveEnemy = targetEntity;
                     npcBasicMover.doUpdate();
                 }
 

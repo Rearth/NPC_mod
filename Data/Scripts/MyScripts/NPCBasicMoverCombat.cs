@@ -7,6 +7,7 @@ using VRage.Game.ModAPI;
 using VRage.Game.ModAPI.Interfaces;
 using VRage.Library.Utils;
 using VRage.ModAPI;
+using VRage.Utils;
 using VRageMath;
 using IMySlimBlock = VRage.Game.ModAPI.Ingame.IMySlimBlock;
 
@@ -16,29 +17,32 @@ namespace NPCMod {
             set { activeEnemy = value; }
         }
 
+        private IMyEntity activeEnemy;
+        private IMySlimBlock targetedBlock = null;
+
         private readonly int range;
         private readonly float damage;
         private readonly float attacksPerSecond;
         private float attackWaitTime;
-        private MyParticleEffect impactEffect;
-        private MyParticleEffect launchEffect;
         private int shotAnimDur = 0;
 
         private void updateCombat() {
-            checkParticles();
             if (activeEnemy == null) {
-                movementMode = NPCDataAnimator.MovementMode.Standing;
+                movementMode = CurrentMovementTarget.Equals(Vector3.Zero)
+                    ? NPCDataAnimator.MovementMode.Standing
+                    : NPCDataAnimator.MovementMode.Walking;
                 return;
             }
+
+
             if (attackWaitTime < attacksPerSecond) {
                 attackWaitTime += 1 / 60f;
                 return;
             }
-            
-            if (Vector3.Distance(animator.grid.GetPosition(), activeEnemy.WorldAABB.Center) < range) {
 
+            if (Vector3.Distance(animator.grid.GetPosition(), activeEnemy.WorldAABB.Center) < range) {
                 movementMode = NPCDataAnimator.MovementMode.Attacking;
-                
+
                 var target = targetRandomBlock();
                 var didShoot = fireAt(target);
                 if (didShoot) {
@@ -46,13 +50,13 @@ namespace NPCMod {
                 }
             }
             else {
-                movementMode = NPCDataAnimator.MovementMode.Walking;
+                movementMode = Vector3.Distance(CurrentMovementTarget, animator.grid.GetPosition()) < 1f ? NPCDataAnimator.MovementMode.Standing : NPCDataAnimator.MovementMode.Walking;
             }
         }
 
         private bool hasDirectLOS(Vector3 pos, IMyEntity targetEntity) {
             List<IHitInfo> hits = new List<IHitInfo>();
-            MyAPIGateway.Physics.CastRay(animator.grid.GetPosition(), pos, hits);
+            MyAPIGateway.Physics.CastRay(animator.getMuzzlePosition(), pos, hits);
 
             if (hits.Count > 0) {
                 var hitInfo = hits[0];
@@ -66,6 +70,8 @@ namespace NPCMod {
         }
 
         private Vector3 targetRandomBlock() {
+            if (activeEnemy is IMyCharacter) return activeEnemy.WorldAABB.Center;
+
             var grid = activeEnemy as IMyCubeGrid;
             if (grid == null) return activeEnemy.WorldAABB.Center;
 
@@ -87,22 +93,38 @@ namespace NPCMod {
             return activeEnemy.WorldAABB.Center;
         }
 
+        private bool isEnemy(IMyEntity entity) {
+            if (entity is IMyCharacter) return true;
+            if (!(entity is IMyCubeGrid)) return false;
+            var grid = (IMyCubeGrid) entity;
+            if (grid.BigOwners.Count <= 0) {
+                return false;
+            }
+
+            var owner = grid.BigOwners[0];
+            var faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
+
+            return faction.IsEnemy(animator.npc.OwnerId);
+        }
+
         private bool fireAt(Vector3 target) {
             List<IHitInfo> hits = new List<IHitInfo>();
-            MyAPIGateway.Physics.CastRay(animator.grid.GetPosition(), target, hits);
+            MyAPIGateway.Physics.CastRay(animator.getMuzzlePosition(), target, hits);
             //drawDebugLine(animator.grid.GetPosition(), target);
 
             if (hits.Count > 0) {
                 var hitInfo = hits[0];
                 var entity = hitInfo.HitEntity;
 
-                var clearLOS = entity.Equals(activeEnemy);
+                var clearLOS = isEnemy(entity);
                 if (!clearLOS) return false;
 
                 var grid = entity as MyCubeGrid;
                 IMyDestroyableObject destroyable;
 
                 spawnImpactParticle(hitInfo.Position, hitInfo.Normal);
+                //spawnLaunchParticle(animator.getMuzzlePosition(), target - animator.getMuzzlePosition());
+                weaponLineAnimator.addAnim(animator.getMuzzlePosition(), hitInfo.Position);
                 //spawnLaunchParticle(animator.grid.GetPosition(), hitInfo.Position - animator.grid.GetPosition());
                 shotAnimDur = 0;
 
@@ -114,10 +136,10 @@ namespace NPCMod {
                     if (block == null) return false;
 
                     var myHitInfo = new MyHitInfo {Position = hitInfo.Position, Normal = hitInfo.Normal};
-                    weaponLineAnimator.addAnim(animator.grid.GetPosition(), hitInfo.Position);
                     grid.DoDamage(damage, myHitInfo, null, animator.grid.EntityId);
                     return true;
-                } else if ((destroyable = entity as IMyDestroyableObject) != null) {
+                }
+                else if ((destroyable = entity as IMyDestroyableObject) != null) {
                     var myHitInfo = new MyHitInfo {Position = hitInfo.Position, Normal = hitInfo.Normal};
                     destroyable.DoDamage(damage, MyDamageType.Bullet, true, myHitInfo, animator.grid.EntityId);
                     return true;
@@ -127,33 +149,17 @@ namespace NPCMod {
             return false;
         }
 
-        private void checkParticles() {
-            shotAnimDur++;
-            if (impactEffect != null && shotAnimDur > 5) {
-                impactEffect.StopEmitting();
-            }
-
-            if (launchEffect != null && shotAnimDur > 25) {
-                launchEffect.Stop();
-            }
-        }
-
-        private void OnSmokeEffectDelete(object sender, EventArgs eventArgs) {
-            launchEffect = null;
-        }
-
         private void spawnLaunchParticle(Vector3D pos, Vector3D dir) {
             dir.Normalize();
             var matrix = MatrixD.CreateFromTransformScale(Quaternion.CreateFromForwardUp(dir, Vector3.Up), pos,
                 Vector3D.One);
-
-            if (launchEffect != null) return;
+            
             if (!((MyAPIGateway.Session.Player.GetPosition() - pos).Length() < 150)) return;
-            if (MyParticlesManager.TryCreateParticleEffect((int) MyParticleEffectsIDEnum.Smoke_SmallGunShot,
-                out launchEffect)) {
-                launchEffect.WorldMatrix = matrix;
-                launchEffect.UserBirthMultiplier = 15;
-                launchEffect.OnDelete += OnSmokeEffectDelete;
+            
+            MyParticleEffect effect;
+            if (MyParticlesManager.TryCreateParticleEffect("Smoke_NPC_Weapon", ref matrix, ref pos, uint.MaxValue, out effect)) {
+                effect.Velocity = animator.grid.Physics.AngularVelocity;
+                effect.Play();
             }
         }
 
@@ -164,12 +170,8 @@ namespace NPCMod {
 
             MyParticleEffect effect;
 
-            if (impactEffect == null && MyParticlesManager.TryCreateParticleEffect(32, out effect, false)) {
-                effect.WorldMatrix = matrix;
-                effect.Length = 0.1f;
-                effect.Loop = false;
-                effect.DurationMin = 0.1f;
-                effect.DurationMax = 0.1f;
+            if (MyParticlesManager.TryCreateParticleEffect("MaterialHit_Metal_GatlingGun", ref matrix, ref pos, uint.MaxValue, out effect)) {
+                effect.Play();
             }
         }
     }

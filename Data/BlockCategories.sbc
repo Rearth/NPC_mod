@@ -9,7 +9,8 @@
       <DisplayName>NPC Mod</DisplayName>
       <Name>npc mod disp.</Name>
       <ItemIds>
-        <string>ConveyorSorter/NPC_Test</string>
+        <string>CargoContainer/NPC_Test</string>
+        <string>CargoContainer/NPC_Control_block</string>
       </ItemIds>
     </Category>
   </CategoryClasses>

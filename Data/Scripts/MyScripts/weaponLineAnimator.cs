@@ -57,11 +57,12 @@
                 lifetime++;
                 var progress = (float) lifetime / maxLifeTime;
 
-                var range = progress * dist;
+                var range = 3f;
+                var startFrom = from + dir * progress * dist;
                 
                 try {
                     var Material = MyStringId.GetOrCompute("NPC_Rifle_Anim");
-                    MyTransparentGeometry.AddLineBillboard(Material, Color.White.ToVector4(), from, dir, range, 0.1f, BlendTypeEnum.PostPP);
+                    MyTransparentGeometry.AddLineBillboard(Material, Color.White.ToVector4(), startFrom, dir, range, 0.1f, BlendTypeEnum.SDR);
                 }
                 catch (NullReferenceException ex) {
                     MyLog.Default.Error("Error while drawing billboard: " + ex);
