@@ -111,9 +111,8 @@ namespace NPCMod {
             List<IHitInfo> hits = new List<IHitInfo>();
             MyAPIGateway.Physics.CastRay(animator.getMuzzlePosition(), target, hits);
             //drawDebugLine(animator.grid.GetPosition(), target);
-
-            if (hits.Count > 0) {
-                var hitInfo = hits[0];
+            IHitInfo hitInfo;
+            if (findFirstNonNPC(hits, out hitInfo, true)) {
                 var entity = hitInfo.HitEntity;
 
                 var clearLOS = isEnemy(entity);

@@ -19,11 +19,16 @@ namespace NPCMod {
         internal readonly IMyCubeGrid grid;
         internal readonly IMySlimBlock npc;
 
+        public readonly float moveSpeed;
+        public float relativeMoveSpeed;
+        
+        
+        private int idleTicks = 0;
+        private static readonly float maxAngle = 160;
+        private static readonly float bottomExtraAngle = -0.2f;
         private float animProgress;
         private bool ascending = true;
-        public readonly float moveSpeed;
-        private static readonly float maxAngle = 160;
-        private static readonly float bottomExtraAngle = -0.1f;
+
 
         public NPCDataAnimator(IMyCubeGrid grid, IMySlimBlock npc, float moveSpeed) {
             this.grid = grid;
@@ -51,20 +56,21 @@ namespace NPCMod {
         }
 
         private float getAnimationSpeed() {
-            return grid.Physics.LinearVelocity.Length() * 0.75f;
+            return relativeMoveSpeed * 0.5f;
+            //return grid.Physics.LinearVelocity.Length() * 0.75f;
         }
 
         public void updateRender(MovementMode mode) {
 
-            if (mode == MovementMode.Standing) {
+            var useSpeed = getAnimationSpeed();
+
+            if (useSpeed < 0.2 && idleTicks++ > 5) {
                 setAngleOnPart(0, top_left_leg);
                 setAngleOnPart(0, top_right_leg);
                 setAngleOnPart((0), bottom_left_leg);
                 setAngleOnPart((0), bottom_right_leg);
                 return;
-            }
-
-            var useSpeed = getAnimationSpeed();
+            } else if (useSpeed >= 0.2) idleTicks = 0;
             
             if (ascending) {
                 animProgress += (1 / 60f) * useSpeed / 2;

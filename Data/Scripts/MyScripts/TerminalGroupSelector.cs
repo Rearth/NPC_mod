@@ -6,6 +6,7 @@ using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces.Terminal;
 using VRage.Game.ModAPI;
+using VRage.Input;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
@@ -44,13 +45,45 @@ namespace NPCMod {
             var spawnButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
             spawnButton.Title = MyStringId.GetOrCompute("Spawn NPC");
             spawnButton.Action = OnSpawnNPC;
+            
+            var recordPoints = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
+            recordPoints.Title = MyStringId.GetOrCompute("Record Points");
+            recordPoints.Action = OnRecordPoints;
+            recordPoints.Enabled = startRecordEnabled;
+            
+            var stopRecord = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
+            stopRecord.Title = MyStringId.GetOrCompute("Stop recording");
+            stopRecord.Action = OnStopRecord;
+            stopRecord.Enabled = stopRecordEnabled;
 
             var spawnAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block");
             spawnAction.Name = new StringBuilder("Spawn NPC");
             spawnAction.Action = OnSpawnNPC;
             
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(spawnButton);
+            MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(recordPoints);
+            MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(stopRecord);
             MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(spawnAction);
+        }
+
+        private static bool stopRecordEnabled(IMyTerminalBlock block) {
+            var state = block.GameLogic.GetAs<NPCControlBlock>()?.recordingPoints;
+            return state != null && (bool) state;
+        }
+
+        private static bool startRecordEnabled(IMyTerminalBlock block) {
+            var state = !block.GameLogic.GetAs<NPCControlBlock>()?.recordingPoints;
+            return state != null && (bool) state;
+        }
+
+        private static void OnStopRecord(IMyTerminalBlock block) {
+            block.GameLogic.GetAs<NPCControlBlock>()?.stopRecordingPoints();
+            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
+        }
+
+        private static void OnRecordPoints(IMyTerminalBlock block) {
+            block.GameLogic.GetAs<NPCControlBlock>()?.startRecordingPoints();
+            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
         }
 
         private static void OnSpawnNPC(IMyTerminalBlock block) {
@@ -64,8 +97,12 @@ namespace NPCMod {
             var gridBlocks = new List<IMySlimBlock>();
             (entity as IMyCubeGrid)?.GetBlocks(gridBlocks);
             var npc = NPCBasicMover.getEngineer(gridBlocks.First());
-            NPCControlBlock.queuedNPCs[block.EntityId] = npc;
+            block.GameLogic.GetAs<NPCControlBlock>()?.addNPC(npc);
+            
             MyLog.Default.WriteLine("terminal block id: " + block.EntityId);
+            
+            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
+
         }
 
         private static long getSelectedID(IMyTerminalBlock block) {
@@ -90,10 +127,11 @@ namespace NPCMod {
         private static void OnItemSelected(IMyTerminalBlock block, string selected) {
             MyLog.Default.WriteLine("selected: " + selected + " on " + block);
             NPCControlBlock.writeStorage(block, NPCMODEGUID, selected);
+            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
         }
 
         private static String getSelected(IMyTerminalBlock block) {
-            return  NPCControlBlock.readStorage(block, NPCMODEGUID);
+            return NPCControlBlock.readStorage(block, NPCMODEGUID);
         }
 
         private static void FillGroupList(List<MyTerminalControlListBoxItem> itemList,

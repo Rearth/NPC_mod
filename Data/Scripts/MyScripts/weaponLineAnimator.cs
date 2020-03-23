@@ -9,14 +9,14 @@
 
 
  namespace NPCMod {
-    [MySessionComponentDescriptor(MyUpdateOrder.AfterSimulation)]
+    [MySessionComponentDescriptor(MyUpdateOrder.BeforeSimulation)]
     public class weaponLineAnimator : MySessionComponentBase {
 
         private static readonly int npc_weapon_anim_duration = 10;
         
         private static List<attackAnimation> activeAnims = new List<attackAnimation>();
 
-        public override void UpdateAfterSimulation() {
+        public override void UpdateBeforeSimulation() {
             var toRemove = new List<attackAnimation>();
 
             foreach (var anim in activeAnims) {

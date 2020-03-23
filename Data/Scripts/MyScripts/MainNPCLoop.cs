@@ -6,7 +6,8 @@ using Sandbox.ModAPI;
  using VRage.Game;
  using VRage.Game.Components;
 using VRage.Game.ModAPI;
-using VRage.ModAPI;
+ using VRage.Library.Utils;
+ using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
 
@@ -86,7 +87,8 @@ namespace NPCMod {
         }
 
         public static IMyEntity spawnNPC(long owner, Color color, Vector3 position) {
-            var entity = NPCGridUtilities.SpawnBlock("NPC_Test", "npc_" + ticks, color, true, true, false, true, true, owner) as IMyCubeGrid;
+            var id = MyRandom.Instance.Next(100, 1000000);
+            var entity = NPCGridUtilities.SpawnBlock("NPC_Test", "npc_" + id, color, true, true, false, true, true, owner) as IMyCubeGrid;
             
             if (entity != null) {
                 var matrix = entity.WorldMatrix;
@@ -99,6 +101,7 @@ namespace NPCMod {
         }
 
         public override void UpdateAfterSimulation() {
+            ticks++;
             try {
                 if (!inited) {
                     //init();
@@ -106,7 +109,6 @@ namespace NPCMod {
                     return;
                 }
 
-                ticks++;
                 if (ticks % 240 == 0) {
                     //init();
                 }
