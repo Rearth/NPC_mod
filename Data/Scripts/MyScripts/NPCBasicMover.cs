@@ -1,37 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using Sandbox.Engine.Physics;
-using Sandbox.Game.Entities;
-using Sandbox.Game.Entities.Character;
 using Sandbox.ModAPI;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.ModAPI;
-using VRage.Game.ModAPI.Interfaces;
 using VRage.Library.Utils;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
-using IMyCubeBlock = VRage.Game.ModAPI.Ingame.IMyCubeBlock;
-using IMySlimBlock = VRage.Game.ModAPI.Ingame.IMySlimBlock;
 
 namespace NPCMod {
     public partial class NPCBasicMover {
-        public Vector3 CurrentMovementTarget { get; set; }
+        //never use this directly
+        private Vector3 currentMovementTargetInternal;
+        private Vector3 intermediateTargetInternal;
+
+        private Vector3 CurrentMovementTarget {
+            get { return getGlobalPos(currentMovementTargetInternal); }
+            set { currentMovementTargetInternal = toLocalPos(value); }
+        }
+        private Vector3 intermediateTarget {
+            get { return getGlobalPos(intermediateTargetInternal); }
+            set { intermediateTargetInternal = toLocalPos(value); }
+        }
+
         public int ID = MyRandom.Instance.Next(0, int.MaxValue);
 
         internal readonly NPCDataAnimator animator;
 
-        private Vector3 intermediateTarget = Vector3.Zero;
-        private bool flying = false;
-        private IHitInfo cachedSurfaceHit = null;
+        private bool flying;
+        private IHitInfo cachedSurfaceHit;
         private List<waypoint> waypointList = new List<waypoint>();
         private int lifetime = MyRandom.Instance.Next(50);
         private NPCDataAnimator.MovementMode movementMode = NPCDataAnimator.MovementMode.Standing;
-        private int stuckTimer = 0;
+        private int stuckTimer;
+
+        private IMyCubeBlock relativeTo;
+        private Vector3 initialOffsetRotation;
+
         private Vector3 lastPos;
+        private bool forceFast;
 
         public NPCBasicMover(NPCDataAnimator animator, int range, float damage,
             float attacksPerSecond) {
@@ -41,7 +50,7 @@ namespace NPCMod {
             this.attacksPerSecond = attacksPerSecond;
         }
 
-        public static NPCBasicMover getEngineer(VRage.Game.ModAPI.IMySlimBlock npc) {
+        public static NPCBasicMover getEngineer(IMySlimBlock npc) {
             var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, 10f);
             var basicMover = new NPCBasicMover(npcDataAnimator, 120, 1f,
                 0.5f);
@@ -115,9 +124,18 @@ namespace NPCMod {
             waypointList.Add(new waypoint {targetPos = target});
         }
 
+        public void addWaypoint(Vector3 target, IMyCubeBlock relativeTo, Vector3 initialPatrolRotation) {
+            if (target.Equals(Vector3.Zero) || Vector3.Distance(target, animator.grid.GetPosition()) < 2.5f) return;
+            waypointList.Add(new waypoint {targetPos = target, relativeTo = relativeTo, rot = initialPatrolRotation});
+        }
+
         public void addWaypoint(IMyEntity target) {
             if (target == null) return;
             waypointList.Add(new waypoint {trackedEntity = target});
+        }
+
+        public void setWalkFast(bool val) {
+            forceFast = val;
         }
 
         private void waypointReachedCheck() {
@@ -125,8 +143,8 @@ namespace NPCMod {
                 //point reached
                 removeCurrentTarget();
                 if (waypointList.Count > 0 && waypointList[0].targetPos != Vector3.Zero) {
-                    waypointList[0] = new waypoint()
-                        {targetPos = toSurfacePos(waypointList[0].targetPos, animator.grid, waypointList[0].targetPos)};
+                    waypointList[0] = new waypoint
+                        {targetPos = toSurfacePos(waypointList[0].targetPos, animator.grid, waypointList[0].targetPos), relativeTo = waypointList[0].relativeTo, rot = waypointList[0].rot};
                 }
             }
         }
@@ -169,10 +187,19 @@ namespace NPCMod {
                 removeCurrentTarget();
             }
 
+            relativeTo = waypoint.relativeTo;
+            initialOffsetRotation = waypoint.rot;
+
+            if (waypoint.targetPos != Vector3.Zero && waypoint.relativeTo != null) {
+                currentMovementTargetInternal = waypoint.targetPos;
+                return;
+            }
+
             if (waypoint.targetPos != Vector3.Zero) CurrentMovementTarget = waypoint.targetPos;
             if (waypoint.trackedEntity != null) {
                 var dist = waypoint.trackedEntity.GetPosition() - animator.grid.GetPosition();
-                CurrentMovementTarget = dist.Length() > 30 ? waypoint.trackedEntity.GetPosition() : animator.grid.GetPosition();
+                CurrentMovementTarget =
+                    dist.Length() > 30 ? waypoint.trackedEntity.GetPosition() : animator.grid.GetPosition();
             }
         }
 
@@ -187,6 +214,15 @@ namespace NPCMod {
             }
 
             return null;
+        }
+
+        private float getWantedSpeed() {
+            var distToTarget = Vector3.Distance(animator.grid.GetPosition(), CurrentMovementTarget);
+            if (distToTarget > 100 || forceFast) {
+                return animator.getSpeed(movementMode);
+            }
+
+            return animator.getSpeed(movementMode) * 0.6f;
         }
 
         private static IMyEntity findNearbyEnemy(Vector3 position, float range, IMyCubeGrid npcGrid) {
@@ -215,10 +251,10 @@ namespace NPCMod {
                     var grid = entity as IMyCubeGrid;
                     if (grid == null || grid.BigOwners.Count < 1) continue;
 
-                    var blocks = new List<VRage.Game.ModAPI.IMySlimBlock>();
+                    var blocks = new List<IMySlimBlock>();
                     grid.GetBlocks(blocks);
                     var isNPC = blocks.Count == 1 && blocks[0].BlockDefinition.Id.SubtypeId.String == "NPC_Test";
-                    
+
                     if (blocks.Count < 3 && !isNPC) continue;
 
                     entityOwner = grid.BigOwners[0];
@@ -276,9 +312,9 @@ namespace NPCMod {
             }
         }
 
-        private void doValidMoment(bool skipCast, List<IHitInfo> hits, IMyCubeGrid grid, Vector3D forwardDir, bool hasTarget,
+        private void doValidMoment(bool skipCast, List<IHitInfo> hits, IMyCubeGrid grid, Vector3D forwardDir,
+            bool hasTarget,
             Vector3D ownPos) {
-            
             if (!skipCast) {
                 cachedSurfaceHit = hits[0];
             }
@@ -289,8 +325,9 @@ namespace NPCMod {
 
             if (hasTarget) {
                 if (MainNPCLoop.ticks % 40 == 0) {
+                    var distToTarget = CurrentMovementTarget - animator.grid.GetPosition();
                     intermediateTarget =
-                        getIntermediateMovementTarget(grid, CurrentMovementTarget, intermediateTarget);
+                        getIntermediateMovementTarget(grid, CurrentMovementTarget, distToTarget.Length());
                 }
 
 
@@ -304,15 +341,15 @@ namespace NPCMod {
 
                 var curDir = grid.Physics.LinearVelocity;
                 var relativeSpeed = curDir - cachedSurfaceHit.HitEntity.Physics.LinearVelocity;
-                var speed = animator.getSpeed(movementMode);
+                var speed = getWantedSpeed();
 
                 var correctedDir = dirToTarget * speed * 1.5 - curDir;
                 correctedDir = projectOnPlane(correctedDir, cachedSurfaceHit.Normal);
-                
+
                 animator.relativeMoveSpeed = relativeSpeed.Length();
 
                 var missingVector = dirToTarget * speed - grid.Physics.LinearVelocity;
-                
+
                 if (missingVector.Length() > 0.5f) {
                     drawDebugLine(grid.WorldMatrix.Translation, correctedDir);
                     correctedDir.Normalize();
@@ -343,7 +380,9 @@ namespace NPCMod {
             return fallback;
         }
 
-        private Vector3 getIntermediateMovementTarget(IMyCubeGrid grid, Vector3 target, Vector3 oldIntermediate) {
+        //local avoidance
+        private Vector3 getIntermediateMovementTarget(IMyCubeGrid grid, Vector3 target, double initialRange) {
+            if (initialRange > 250f) initialRange = 250;
             var castFrom = grid.GetPosition() + grid.WorldMatrix.Up * 0.3f;
             //var dir = grid.WorldMatrix.Backward;
             var dir = target - castFrom;
@@ -360,8 +399,8 @@ namespace NPCMod {
                     MatrixD.CreateFromQuaternion(Quaternion.CreateFromAxisAngle(grid.WorldMatrix.Up, degInRad)));
                 newDir.Normalize();
                 var targetPos = target;
-                var range = 35 + (3 * i / 30);
-                if (validDir(castFrom, newDir, grid, ref targetPos, range)) {
+                float castRange = (float) (initialRange + (3 * i / 30f));
+                if (validDir(castFrom, newDir, grid, ref targetPos, castRange)) {
                     return i == 0 ? target : targetPos;
                 }
             }
@@ -397,9 +436,10 @@ namespace NPCMod {
                         hit = elem;
                         return true;
                     }
+
                     continue;
                 }
-                
+
                 hit = elem;
                 return true;
             }
@@ -432,6 +472,7 @@ namespace NPCMod {
             if (getAngleBetweenVectors(up, -grid.Physics.Gravity) * 180 / Math.PI > 45) {
                 up = -grid.Physics.Gravity;
             }
+
             var newRot = Vector3.Lerp(gridWorldMatrix.Up, up, 0.6f);
             newRot.Normalize();
             gridWorldMatrix.Up = newRot;
@@ -448,9 +489,32 @@ namespace NPCMod {
 //            }
         }
 
+        private Vector3 getGlobalPos(Vector3 pos) {
+            if (relativeTo == null) return pos;
+
+            var offset = pos;
+            Vector3 curDir = relativeTo.WorldMatrix.Forward;
+
+            var angle = (float) Math.Acos(initialOffsetRotation.Dot(curDir));
+            var axis = initialOffsetRotation.Cross(curDir);
+
+            var curOffset = Vector3.Transform(offset, Matrix.CreateFromAxisAngle(axis, angle));
+
+            return relativeTo.GetPosition() + curOffset;
+        }
+
+        private Vector3 toLocalPos(Vector3 pos) {
+            if (relativeTo == null) return pos;
+
+            initialOffsetRotation = relativeTo.WorldMatrix.Forward;
+            return pos - relativeTo.GetPosition();
+        }
+
         private struct waypoint {
             internal IMyEntity trackedEntity;
             internal Vector3 targetPos;
+            internal IMyCubeBlock relativeTo;
+            internal Vector3 rot;
         }
 
         private Vector3 projectOnPlane(Vector3 vector, Vector3 planeNormal) {
@@ -470,27 +534,27 @@ namespace NPCMod {
         }
 
         private double signedAngle(Vector3 from, Vector3 to, Vector3 axis) {
-            var angle = getAngleBetweenVectors(@from, to);
-            float cross_x = @from.Y * to.Z - @from.Z * to.Y;
-            float cross_y = @from.Z * to.X - @from.X * to.Z;
-            float cross_z = @from.X * to.Y - @from.Y * to.X;
+            var angle = getAngleBetweenVectors(from, to);
+            float cross_x = from.Y * to.Z - from.Z * to.Y;
+            float cross_y = from.Z * to.X - from.X * to.Z;
+            float cross_z = from.X * to.Y - from.Y * to.X;
             float sign = Math.Sign(axis.X * cross_x + axis.Y * cross_y + axis.Z * cross_z);
             return angle * sign;
         }
 
         public static void drawDebugLine(Vector3 from, Vector3 to, Vector4 color) {
             if (MainNPCLoop.DEBUG)
-                MySimpleObjectDraw.DrawLine(@from, to, MyStringId.GetOrCompute("Square"), ref color, 0.05f);
+                MySimpleObjectDraw.DrawLine(from, to, MyStringId.GetOrCompute("Square"), ref color, 0.05f);
         }
 
         public static void drawDebugLine(Vector3 from, Vector3 to) {
-            drawDebugLine(@from, to, Color.Red.ToVector4());
+            drawDebugLine(from, to, Color.Red.ToVector4());
         }
 
         public static void drawDebugDir(Vector3 from, Vector3 dir, float dist = 2f) {
             dir.Normalize();
-            var to = @from + dir * dist;
-            drawDebugLine(@from, to, Color.Aquamarine.ToVector4());
+            var to = from + dir * dist;
+            drawDebugLine(from, to, Color.Aquamarine.ToVector4());
         }
     }
 }

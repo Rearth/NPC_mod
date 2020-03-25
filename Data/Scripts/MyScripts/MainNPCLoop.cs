@@ -26,7 +26,7 @@ namespace NPCMod {
         private static readonly float npcWeaponDamage = 1;
         private static readonly float npcAttacksPerSecond = 0.5f;
         
-        public static bool DEBUG = false;
+        public static bool DEBUG = true;
         
 
         private void init() {

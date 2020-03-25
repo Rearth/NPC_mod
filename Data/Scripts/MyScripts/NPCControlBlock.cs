@@ -15,7 +15,6 @@ using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
 using ProtoBuf;
-using Sandbox.Engine.Physics;
 
 namespace NPCMod {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block")]
@@ -38,6 +37,10 @@ namespace NPCMod {
         private Dictionary<int, int> patrolProgress = new Dictionary<int, int>();
         private Vector3 initialPatrolRotation;
         private int ticks = 0;
+
+        //delete marker
+        private int deleteMarkerAt;
+        private string deleteMarkerName;
 
         public bool recordingPoints;
 
@@ -65,7 +68,6 @@ namespace NPCMod {
 
             var terminalBlock = ((IMyTerminalBlock) block);
             if (terminalBlock != null) terminalBlock.AppendingCustomInfo += addcustomInfo;
-            
         }
 
         public override void UpdateAfterSimulation() {
@@ -80,21 +82,22 @@ namespace NPCMod {
         }
 
         public override void UpdateBeforeSimulation() {
-
             ticks++;
             if (ticks == 5) {
                 try {
                     loadSettings();
                 }
-                catch (NullReferenceException ex) {
+                catch (Exception ex) {
                     MyLog.Default.WriteLine("caught excetion while loading settings: " + ex);
                 }
             }
+
             if (ticks < 6) return;
-            
+
             updateNPCList();
             updateMode(block);
             updateInput();
+            checkDeleteMarker();
 
             switch (selectedMode) {
                 case NPCMode.patrol:
@@ -112,12 +115,14 @@ namespace NPCMod {
             }
 
             updateTerminalInformation();
+
+            if (ticks % 600 == 0) saveSettings();
         }
 
         private void standAtPoint(IMyCubeBlock block) {
             foreach (var npc in npcsSpawned) {
                 if (npc.getWaypointCount() == 0) {
-                    npc.addWaypoint(block.GetPosition() + standPoint);
+                    npc.addWaypoint(standPoint, block, initialPatrolRotation);
                 }
             }
         }
@@ -139,27 +144,19 @@ namespace NPCMod {
 
                 var progress = patrolProgress[npc.ID];
                 var offset = patrolPoints[progress];
-                Vector3 curDir = block.WorldMatrix.Forward;
-
-                var angle = (float) Math.Acos(initialPatrolRotation.Dot(curDir));
-                var axis = initialPatrolRotation.Cross(curDir);
-
-                var curOffset = Vector3.Transform(offset, Matrix.CreateFromAxisAngle(axis, angle));
-
-                var nextPoint = block.GetPosition() + curOffset;
                 
                 npc.clearWaypointsConservingEnemy();
-                npc.addWaypoint(nextPoint);
+                npc.addWaypoint(offset, this.block, initialPatrolRotation);
 
                 //check if npc is close enough
-                var dist = Vector3.Distance(nextPoint, npc.animator.grid.GetPosition());
+                var dist = Vector3.Distance(npc.getCurrentWaypoint(), npc.animator.grid.GetPosition());
                 if (dist < 2) //point reached
                     progress++;
                 progress = progress % patrolPoints.Count;
                 patrolProgress[npc.ID] = progress;
             }
         }
-        
+
         private void followPlayer(IMyCubeBlock myCubeBlock) {
             var playerPos = MyAPIGateway.Session.Player.GetPosition();
             playerPos = NPCBasicMover.toSurfacePos(playerPos, MyAPIGateway.Session.Player.Character, playerPos);
@@ -169,6 +166,7 @@ namespace NPCMod {
                 if (Vector3.Distance(npc.getCurrentWaypoint(), npcPositionTarget) < 1f) {
                     return;
                 }
+
                 npc.clearWaypointsConservingEnemy();
                 npc.addWaypoint(npcPositionTarget);
             }
@@ -195,7 +193,7 @@ namespace NPCMod {
                     case NPCMode.attack:
                         var tempPoint = getAttackPos();
                         if (tempPoint.Equals(Vector3.Zero)) return;
-                        
+
                         attackPoint = tempPoint;
                         createTempMarker("Attack point", 5, tempPoint);
                         stopRecordingPoints();
@@ -204,6 +202,7 @@ namespace NPCMod {
                         standPoint = pos;
                         createTempMarker("Guard point", 5, globalPos);
                         stopRecordingPoints();
+                        initialPatrolRotation = block.WorldMatrix.Forward;
                         break;
                     case NPCMode.follow:
                         MyLog.Default.WriteLine("invalid state, recorded point in follow mode");
@@ -231,8 +230,16 @@ namespace NPCMod {
         }
 
         private void createTempMarker(string text, int time, Vector3 pos) {
+            deleteMarkerAt = ticks + time * 60;
+            deleteMarkerName = text;
             MyVisualScriptLogicProvider.AddGPS(text, "", pos, Color.Green, time,
                 MyAPIGateway.Session.Player.IdentityId);
+        }
+
+        private void checkDeleteMarker() {
+            if (ticks == deleteMarkerAt) {
+                MyVisualScriptLogicProvider.RemoveGPS(deleteMarkerName, MyAPIGateway.Session.Player.IdentityId);
+            }
         }
 
         private void resetData() {
@@ -244,12 +251,11 @@ namespace NPCMod {
 
         public void startRecordingPoints() {
             resetData();
-            deleteOldWaypoints();
+            deleteOldWaypoints(false);
 
             recordingPoints = true;
             MyVisualScriptLogicProvider.AddGPS("Adding Waypoints", "", block.GetPosition(), Color.Aqua, 0,
                 MyAPIGateway.Session.Player.IdentityId);
-            
         }
 
         public void stopRecordingPoints() {
@@ -258,7 +264,7 @@ namespace NPCMod {
             for (int i = 0; i < patrolPoints.Count + 1; i++) {
                 MyVisualScriptLogicProvider.RemoveGPS("Patrol Point #" + i, MyAPIGateway.Session.Player.IdentityId);
             }
-            
+
             saveSettings();
         }
 
@@ -310,7 +316,6 @@ namespace NPCMod {
             var matrix = MyAPIGateway.Session.Player.Character.WorldMatrix;
             var offset = calcOffset(npcsSpawned.Count, matrix.Forward * 2, matrix.Right * 2);
             offsets[npc.ID] = offset;
-
         }
 
         private void updateNPCList() {
@@ -343,7 +348,7 @@ namespace NPCMod {
                     //mode change
                     stopRecordingPoints();
                     resetData();
-                    deleteOldWaypoints();
+                    deleteOldWaypoints(newMode == NPCMode.follow);
                 }
 
                 selectedMode = newMode;
@@ -353,9 +358,10 @@ namespace NPCMod {
             }
         }
 
-        private void deleteOldWaypoints() {
+        private void deleteOldWaypoints(bool walkFast) {
             foreach (var npcBasicMover in npcsSpawned) {
                 npcBasicMover.clearWaypointsConservingEnemy();
+                npcBasicMover.setWalkFast(walkFast);
             }
         }
 
@@ -402,61 +408,59 @@ namespace NPCMod {
 
         [ProtoContract]
         public struct serializableNPCData {
-            [ProtoMember(1)] 
-            public int id;
-            [ProtoMember(2)] 
-            public Vector3 offset;
-
+            [ProtoMember(1)] public int id;
+            [ProtoMember(2)] public Vector3 offset;
+            [ProtoMember(3)] public int progress;
         }
-        
+
         //just to save/load data
         [ProtoContract]
         public class settingsData {
-            [ProtoMember(1)]
-            public NPCMode selectedMode;
-            [ProtoMember(2)] 
-            public List<serializableNPCData> data;
-            [ProtoMember(4)]
-            public Vector3 initialPatrolRotation;
-            [ProtoMember(5)]
-            public List<Vector3> patrolPoints;
-            [ProtoMember(6)]
-            public Vector3 standPoint;
-            [ProtoMember(7)]
-            public Vector3 attackPoint;
-            [ProtoMember(8)]
-            public int NPCCount;
+            [ProtoMember(1)] public NPCMode selectedMode;
+            [ProtoMember(2)] public List<serializableNPCData> data;
+            [ProtoMember(4)] public Vector3 initialPatrolRotation;
+            [ProtoMember(5)] public List<Vector3> patrolPoints;
+            [ProtoMember(6)] public Vector3 standPoint;
+            [ProtoMember(7)] public Vector3 attackPoint;
+            [ProtoMember(8)] public List<Vector3> spawnLocations;
 
             public settingsData() {
             }
 
-            public settingsData(NPCMode selectedMode, Dictionary<int, Vector3> offsets, Dictionary<int, int> patrolProgress, Vector3 initialPatrolRotation, List<Vector3> patrolPoints, Vector3 standPoint, Vector3 attackPoint, int npcCount) {
+            public settingsData(NPCMode selectedMode, Dictionary<int, Vector3> offsets,
+                Dictionary<int, int> patrolProgress, Vector3 initialPatrolRotation, List<Vector3> patrolPoints,
+                Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations) {
                 this.selectedMode = selectedMode;
                 this.initialPatrolRotation = initialPatrolRotation;
                 this.patrolPoints = patrolPoints;
                 this.standPoint = standPoint;
                 this.attackPoint = attackPoint;
-                NPCCount = npcCount;
+                this.spawnLocations = spawnLocations;
 
                 var datas = new List<serializableNPCData>();
                 foreach (var elem in offsets) {
-                    var item = new serializableNPCData() {id = elem.Key, offset = elem.Value};
+                    var item = new serializableNPCData()
+                        {id = elem.Key, offset = elem.Value, progress = patrolProgress[elem.Key]};
                     datas.Add(item);
                 }
 
                 data = datas;
             }
-
-            public override string ToString() {
-                return $"{nameof(selectedMode)}: {selectedMode}, {nameof(data)}: {data}, {nameof(initialPatrolRotation)}: {initialPatrolRotation}, {nameof(patrolPoints)}: {patrolPoints}, {nameof(standPoint)}: {standPoint}, {nameof(attackPoint)}: {attackPoint}, {nameof(NPCCount)}: {NPCCount}";
-            }
         }
 
         private void saveSettings() {
-            var settings = new settingsData(selectedMode, offsets, patrolProgress, initialPatrolRotation, patrolPoints, standPoint, attackPoint, npcsSpawned.Count);
-            var text = Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(settings));
-            
-            writeStorage((IMyTerminalBlock) block, SETTINGSGUID, text);
+            try {
+                var spawnLocations = npcsSpawned.Select(elem => elem.animator.grid.GetPosition())
+                    .Select(dummy => (Vector3) dummy).ToList();
+                var settings = new settingsData(selectedMode, offsets, patrolProgress, initialPatrolRotation,
+                    patrolPoints, standPoint, attackPoint, spawnLocations);
+                var text = Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(settings));
+
+                writeStorage((IMyTerminalBlock) block, SETTINGSGUID, text);
+            }
+            catch (Exception e) {
+                MyLog.Default.WriteLine("caught exception while saving settings: " + e);
+            }
         }
 
         private void loadSettings() {
@@ -464,31 +468,30 @@ namespace NPCMod {
             var text = readStorage((IMyTerminalBlock) block, SETTINGSGUID);
             if (text.Length <= 1) return;
             var res = MyAPIGateway.Utilities.SerializeFromBinary<settingsData>(Convert.FromBase64String(text));
-            
+
             selectedMode = res.selectedMode;
             initialPatrolRotation = res.initialPatrolRotation;
             if (res.patrolPoints != null)
                 patrolPoints = res.patrolPoints;
             standPoint = res.standPoint;
             attackPoint = res.attackPoint;
-            
+
             foreach (var data in res.data) {
                 offsets[data.id] = data.offset;
+                patrolProgress[data.id] = data.progress;
             }
 
-            for (int i = 0; i < res.NPCCount; i++) {
-                createNPCFromSave();
+            foreach (var point in res.spawnLocations) {
+                createNPCFromSave(point);
             }
+
             block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
-            
         }
 
-        private void createNPCFromSave() {
-            var spawnAt = block.GetPosition();
-            spawnAt += block.WorldMatrix.Up;
+        private void createNPCFromSave(Vector3 pos) {
             var color = block.GetDiffuseColor();
-            var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, spawnAt);
-            
+            var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, pos);
+
             var gridBlocks = new List<IMySlimBlock>();
             (entity as IMyCubeGrid)?.GetBlocks(gridBlocks);
             var npc = NPCBasicMover.getEngineer(gridBlocks.First());

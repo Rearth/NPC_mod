@@ -46,10 +46,8 @@ namespace NPCMod {
         }
 
         public float getSpeed(MovementMode mode) {
-            if (mode == MovementMode.Attacking) {
-                return moveSpeed * 0.4f;
-            } else if (mode == MovementMode.Walking) {
-                return moveSpeed;
+            if (mode == MovementMode.Walking || mode == MovementMode.Attacking) {
+                return moveSpeed * 0.85f;
             }
 
             return 0f;

@@ -171,6 +171,7 @@ namespace NPCMod {
 
             if (MyParticlesManager.TryCreateParticleEffect("MaterialHit_Metal_GatlingGun", ref matrix, ref pos, uint.MaxValue, out effect)) {
                 effect.Play();
+                effect.UserScale = 0.2f;
             }
         }
     }
