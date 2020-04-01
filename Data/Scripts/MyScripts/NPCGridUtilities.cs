@@ -70,7 +70,7 @@ namespace NPCMod {
             }
         }
 
-        public static MyEntity SpawnBlock(string subtypeId, string name, Color color, bool isVisible = false,
+        public static MyEntity SpawnBlock(string subtypeId, string name, Vector3 colorHSV, bool isVisible = false,
             bool hasPhysics = false, bool isStatic = false, bool toSave = false, bool destructible = false,
             long ownerId = 0) {
             try {
@@ -81,7 +81,7 @@ namespace NPCMod {
                 CubeGridBuilder.IsStatic = isStatic;
                 CubeGridBuilder.DestructibleBlocks = destructible;
                 CubeGridBuilder.CubeBlocks[0].Owner = ownerId;
-                CubeGridBuilder.CubeBlocks[0].ColorMaskHSV = color.ColorToHSV();
+                CubeGridBuilder.CubeBlocks[0].ColorMaskHSV = colorHSV;
                 var ent = (MyEntity) MyAPIGateway.Entities.CreateFromObjectBuilder(CubeGridBuilder);
 
                 ent.Flags &= ~EntityFlags.Save;

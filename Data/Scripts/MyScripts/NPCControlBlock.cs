@@ -149,9 +149,15 @@ namespace NPCMod {
                 npc.addWaypoint(offset, this.block, initialPatrolRotation);
 
                 //check if npc is close enough
-                var dist = Vector3.Distance(npc.getCurrentWaypoint(), npc.animator.grid.GetPosition());
-                if (dist < 2) //point reached
+                var dist = Vector3.Distance(npc.getGlobalPos(patrolPoints[progress]), npc.animator.grid.GetPosition());
+                
+                if (dist < 1.5f || npc.wasStuck) {
+                    //point reached
                     progress++;
+                    npc.wasStuck = false;
+                    npc.stuckTimer = 0;
+                }
+
                 progress = progress % patrolPoints.Count;
                 patrolProgress[npc.ID] = progress;
             }
@@ -439,8 +445,10 @@ namespace NPCMod {
 
                 var datas = new List<serializableNPCData>();
                 foreach (var elem in offsets) {
+                    int progress;
+                    patrolProgress.TryGetValue(elem.Key, out progress);
                     var item = new serializableNPCData()
-                        {id = elem.Key, offset = elem.Value, progress = patrolProgress[elem.Key]};
+                        {id = elem.Key, offset = elem.Value, progress = progress};
                     datas.Add(item);
                 }
 
@@ -489,7 +497,7 @@ namespace NPCMod {
         }
 
         private void createNPCFromSave(Vector3 pos) {
-            var color = block.GetDiffuseColor();
+            var color = block.SlimBlock.ColorMaskHSV;
             var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, pos);
 
             var gridBlocks = new List<IMySlimBlock>();

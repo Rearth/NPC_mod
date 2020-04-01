@@ -26,7 +26,7 @@ namespace NPCMod {
         private static readonly float npcWeaponDamage = 1;
         private static readonly float npcAttacksPerSecond = 0.5f;
         
-        public static bool DEBUG = true;
+        public static bool DEBUG = false;
         
 
         private void init() {
@@ -86,7 +86,7 @@ namespace NPCMod {
             return int.Parse(last);
         }
 
-        public static IMyEntity spawnNPC(long owner, Color color, Vector3 position) {
+        public static IMyEntity spawnNPC(long owner, Vector3 color, Vector3 position) {
             var id = MyRandom.Instance.Next(100, 1000000);
             var entity = NPCGridUtilities.SpawnBlock("NPC_Test", "npc_" + id, color, true, true, false, true, true, owner) as IMyCubeGrid;
             

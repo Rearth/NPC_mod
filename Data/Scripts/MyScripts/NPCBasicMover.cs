@@ -34,7 +34,8 @@ namespace NPCMod {
         private List<waypoint> waypointList = new List<waypoint>();
         private int lifetime = MyRandom.Instance.Next(50);
         private NPCDataAnimator.MovementMode movementMode = NPCDataAnimator.MovementMode.Standing;
-        private int stuckTimer;
+        public int stuckTimer;
+        public bool wasStuck;
 
         private IMyCubeBlock relativeTo;
         private Vector3 initialOffsetRotation;
@@ -106,15 +107,16 @@ namespace NPCMod {
             var curPos = animator.grid.GetPosition();
             if (Vector3.Distance(curPos, lastPos) < 0.1f) {
                 stuckTimer++;
-                stuckTimer++;
             }
             else {
                 lastPos = curPos;
                 stuckTimer = 0;
+                wasStuck = false;
             }
 
-            if (stuckTimer > 10) {
+            if (stuckTimer > 60) {
                 removeCurrentTarget();
+                wasStuck = true;
                 stuckTimer = 0;
             }
         }
@@ -139,7 +141,7 @@ namespace NPCMod {
         }
 
         private void waypointReachedCheck() {
-            if (Vector3.Distance(animator.grid.GetPosition(), CurrentMovementTarget) < 3f) {
+            if (Vector3.Distance(animator.grid.GetPosition(), CurrentMovementTarget) < 2f) {
                 //point reached
                 removeCurrentTarget();
                 if (waypointList.Count > 0 && waypointList[0].targetPos != Vector3.Zero) {
@@ -489,7 +491,7 @@ namespace NPCMod {
 //            }
         }
 
-        private Vector3 getGlobalPos(Vector3 pos) {
+        public Vector3 getGlobalPos(Vector3 pos) {
             if (relativeTo == null) return pos;
 
             var offset = pos;

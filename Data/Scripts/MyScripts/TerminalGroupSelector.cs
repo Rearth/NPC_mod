@@ -3,19 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Sandbox.Game.EntityComponents;
+using Sandbox.Game.Screens.Helpers;
 using Sandbox.ModAPI;
+using Sandbox.ModAPI.Interfaces;
 using Sandbox.ModAPI.Interfaces.Terminal;
+using VRage.Game;
 using VRage.Game.ModAPI;
 using VRage.Input;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
+using VRageRender;
 
 namespace NPCMod {
     public static class TerminalGroupSelector {
         public static readonly Guid NPCMODEGUID = new Guid("e7a2205f-f66e-44c0-925a-1173bb0d3853");
         public static readonly Guid NPCTEXTGUID = new Guid("4c9d472d-e28a-4f14-b486-0a08b0b64600");
-        
+
         //controls needed:
         //mode selection (Patrol points/attack point/stand guard/follow player)
         //select/add/remove patrol points
@@ -42,16 +46,22 @@ namespace NPCMod {
             groupSelection.Tooltip = MyStringId.GetOrCompute("TODO");
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(groupSelection);
 
-            var spawnButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
+            var spawnButton =
+                MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
+                    "NPC_Control_block");
             spawnButton.Title = MyStringId.GetOrCompute("Spawn NPC");
             spawnButton.Action = OnSpawnNPC;
-            
-            var recordPoints = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
+
+            var recordPoints =
+                MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
+                    "NPC_Control_block");
             recordPoints.Title = MyStringId.GetOrCompute("Record Points");
             recordPoints.Action = OnRecordPoints;
             recordPoints.Enabled = startRecordEnabled;
-            
-            var stopRecord = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>("NPC_Control_block");
+
+            var stopRecord =
+                MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
+                    "NPC_Control_block");
             stopRecord.Title = MyStringId.GetOrCompute("Stop recording");
             stopRecord.Action = OnStopRecord;
             stopRecord.Enabled = stopRecordEnabled;
@@ -59,7 +69,7 @@ namespace NPCMod {
             var spawnAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block");
             spawnAction.Name = new StringBuilder("Spawn NPC");
             spawnAction.Action = OnSpawnNPC;
-            
+
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(spawnButton);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(recordPoints);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(stopRecord);
@@ -91,18 +101,17 @@ namespace NPCMod {
             MyLog.Default.WriteLine("clicked spawn NPC");
             var spawnAt = block.GetPosition();
             spawnAt += block.WorldMatrix.Up;
-            var color = block.GetDiffuseColor().HSVtoColor();
+            var color = block.SlimBlock.ColorMaskHSV;
             var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, spawnAt);
-            
+
             var gridBlocks = new List<IMySlimBlock>();
             (entity as IMyCubeGrid)?.GetBlocks(gridBlocks);
             var npc = NPCBasicMover.getEngineer(gridBlocks.First());
             block.GameLogic.GetAs<NPCControlBlock>()?.addNPC(npc);
-            
-            MyLog.Default.WriteLine("terminal block id: " + block.EntityId);
-            
-            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
 
+            MyLog.Default.WriteLine("terminal block id: " + block.EntityId);
+
+            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
         }
 
         private static long getSelectedID(IMyTerminalBlock block) {
@@ -150,12 +159,38 @@ namespace NPCMod {
             var selected = getSelected(myTerminalBlock);
             MyLog.Default.WriteLine("found selected val: " + selected);
             if (selected.Equals(patrol.Text.String)) selectedItemList.Add(patrol);
-            else if (selected.Equals(attackPoint.Text.String)) selectedItemList.Add(attackPoint); 
+            else if (selected.Equals(attackPoint.Text.String)) selectedItemList.Add(attackPoint);
             else if (selected.Equals(standGuard.Text.String)) selectedItemList.Add(standGuard);
 
             if (selectedItemList.Count < 1) {
                 selectedItemList.Add(standGuard);
                 OnItemSelected(myTerminalBlock, standGuard.Text.String);
+            }
+        }
+
+        public static Vector3 HsvToRgb(Vector3 hsv) {
+            float num1 = hsv.X * 360f;
+            float y = hsv.Y;
+            double z = (double) hsv.Z;
+            int num2 = Convert.ToInt32(Math.Floor((double) num1 / 60.0)) % 6;
+            float num3 = (float) ((double) num1 / 60.0 - Math.Floor((double) num1 / 60.0));
+            float num4 = (float) z;
+            float num5 = (float) (z * (1.0 - (double) y));
+            float num6 = (float) (z * (1.0 - (double) num3 * (double) y));
+            float num7 = (float) (z * (1.0 - (1.0 - (double) num3) * (double) y));
+            switch (num2) {
+                case 0:
+                    return new Vector3(num4, num7, num5);
+                case 1:
+                    return new Vector3(num6, num4, num5);
+                case 2:
+                    return new Vector3(num5, num4, num7);
+                case 3:
+                    return new Vector3(num5, num6, num4);
+                case 4:
+                    return new Vector3(num7, num5, num4);
+                default:
+                    return new Vector3(num4, num5, num6);
             }
         }
     }
