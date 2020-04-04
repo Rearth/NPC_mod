@@ -62,7 +62,7 @@
                 
                 try {
                     var Material = MyStringId.GetOrCompute("NPC_Rifle_Anim");
-                    MyTransparentGeometry.AddLineBillboard(Material, Color.White.ToVector4(), startFrom, dir, range, 0.1f, BlendTypeEnum.Standard);
+                    MyTransparentGeometry.AddLineBillboard(Material, Color.White.ToVector4(), startFrom, dir, range, 0.1f, BlendTypeEnum.SDR);
                 }
                 catch (NullReferenceException ex) {
                     MyLog.Default.Error("Error while drawing billboard: " + ex);

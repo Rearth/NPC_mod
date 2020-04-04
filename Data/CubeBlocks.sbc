@@ -5,7 +5,7 @@
     <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
       <Id>
         <TypeId>CargoContainer</TypeId>
-        <SubtypeId>NPC_Test</SubtypeId>
+        <SubtypeId>NPC_Basic</SubtypeId>
       </Id>
       <DisplayName>npc</DisplayName>
       <Icon>Textures\GUI\Icons\Cubes\DeadAstronaut.dds</Icon>
@@ -16,10 +16,43 @@
       <ModelOffset x="0" y="-0.75" z="0" />
       <Model>Models\NPCModMain.mwm</Model>
       <Components>
-        <Component Subtype="NPC_Component" Count="1" />
         <Component Subtype="Computer" Count="1" />
+        <Component Subtype="NPC_Component" Count="1" />
+        <Component Subtype="SteelPlate" Count="1" />
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
+      <EdgeType>Light</EdgeType>
+      <InventorySize>
+        <X>1</X>
+        <Y>1</Y>
+        <Z>1</Z>
+      </InventorySize>
+      <PhysicsOption>Convex</PhysicsOption>
+      <IsAirTight>false</IsAirTight>
+      <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
+      <DamagedSound>ParticleHeavyMech</DamagedSound>
+      <DestroyEffect>BlockDestroyedExplosion_Small</DestroyEffect>
+      <DestroySound>WepSmallWarheadExpl</DestroySound>
+    </Definition>
+    <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
+      <Id>
+        <TypeId>CargoContainer</TypeId>
+        <SubtypeId>NPC_Elite</SubtypeId>
+      </Id>
+      <DisplayName>npc elite</DisplayName>
+      <Icon>Textures\GUI\Icons\Cubes\DeadAstronaut.dds</Icon>
+      <CubeSize>Small</CubeSize>
+      <BlockTopology>TriangleMesh</BlockTopology>
+      <Size x="1" y="3" z="1" />
+      <Center x="0" y="0" z="0" />
+      <ModelOffset x="0" y="-0.75" z="0" />
+      <Model>Models\NPCEliteMain.mwm</Model>
+      <Components>
+        <Component Subtype="Computer" Count="1" />
+        <Component Subtype="NPC_Component_Elite" Count="1" />
+        <Component Subtype="SteelPlate" Count="1" />
+      </Components>
+      <CriticalComponent Subtype="NPC_Component" Index="0" />
       <EdgeType>Light</EdgeType>
       <InventorySize>
         <X>1</X>
@@ -47,10 +80,39 @@
       <ModelOffset x="0" y="0" z="0" />
       <Model>Models\Cubes\Large\CargoContainerSmall.mwm</Model>
       <Components>
-        <Component Subtype="Computer" Count="2" />
+        <Component Subtype="Computer" Count="1" />
         <Component Subtype="NPC_Component" Count="1" />
+        <Component Subtype="SteelPlate" Count="1" />
       </Components>
-      <CriticalComponent Subtype="Computer" Index="0" />
+      <CriticalComponent Subtype="NPC_Component" Index="0" />
+      <EdgeType>Light</EdgeType>
+      <BuildTimeSeconds>15</BuildTimeSeconds>
+      <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
+      <DamagedSound>ParticleHeavyMech</DamagedSound>
+      <DestroyEffect>BlockDestroyedExplosion_Large</DestroyEffect>
+      <DestroySound>WepSmallWarheadExpl</DestroySound>
+      <PCU>100</PCU>
+      <IsAirTight>false</IsAirTight>
+    </Definition>
+    <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
+      <Id>
+        <TypeId>CargoContainer</TypeId>
+        <SubtypeId>NPC_Control_elite</SubtypeId>
+      </Id>
+      <DisplayName>NPC Elite Control Station</DisplayName>
+      <Icon>Textures\GUI\Icons\Cubes\container.dds</Icon>
+      <Description>TODO</Description>
+      <CubeSize>Large</CubeSize>
+      <BlockTopology>TriangleMesh</BlockTopology>
+      <Size x="1" y="1" z="1" />
+      <ModelOffset x="0" y="0" z="0" />
+      <Model>Models\Cubes\Large\CargoContainerSmall.mwm</Model>
+      <Components>
+        <Component Subtype="Computer" Count="1" />
+        <Component Subtype="NPC_Component" Count="1" />
+        <Component Subtype="SteelPlate" Count="1" />
+      </Components>
+      <CriticalComponent Subtype="SteelPlate" Index="0" />
       <EdgeType>Light</EdgeType>
       <BuildTimeSeconds>15</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>

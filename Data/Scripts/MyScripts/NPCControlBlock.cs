@@ -17,7 +17,7 @@ using VRageMath;
 using ProtoBuf;
 
 namespace NPCMod {
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block", "NPC_Control_elite")]
     public class NPCControlBlock : MyGameLogicComponent {
         public enum NPCMode {
             patrol = 0,
@@ -25,6 +25,8 @@ namespace NPCMod {
             stand = 2,
             follow = 3
         }
+
+        private string npc_subtype;
 
         private static bool controlsCreated;
 
@@ -68,6 +70,8 @@ namespace NPCMod {
 
             var terminalBlock = ((IMyTerminalBlock) block);
             if (terminalBlock != null) terminalBlock.AppendingCustomInfo += addcustomInfo;
+            if (block.BlockDefinition.SubtypeId.Equals("NPC_Control_block")) npc_subtype = "NPC_Basic";
+            if (block.BlockDefinition.SubtypeId.Equals("NPC_Control_elite")) npc_subtype = "NPC_Elite";
         }
 
         public override void UpdateAfterSimulation() {
@@ -490,20 +494,36 @@ namespace NPCMod {
             }
 
             foreach (var point in res.spawnLocations) {
-                createNPCFromSave(point);
+                createNPCatPos(point, npc_subtype);
             }
 
             block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
         }
 
-        private void createNPCFromSave(Vector3 pos) {
+        private void createNPCatPos(Vector3 pos, string subtype) {
             var color = block.SlimBlock.ColorMaskHSV;
-            var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, pos);
+            var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, pos, subtype);
 
             var gridBlocks = new List<IMySlimBlock>();
             (entity as IMyCubeGrid)?.GetBlocks(gridBlocks);
-            var npc = NPCBasicMover.getEngineer(gridBlocks.First());
+            NPCBasicMover npc = null;
+            switch (subtype) {
+                case "NPC_Basic":
+                    npc = NPCBasicMover.getEngineer(gridBlocks.First());
+                    break;
+                case "NPC_Elite":
+                    npc = NPCBasicMover.getElite(gridBlocks.First());
+                    break;
+                        
+            }
             block.GameLogic.GetAs<NPCControlBlock>()?.addNPC(npc);
         }
+
+        public void spawnNPCTriggered() {
+            var spawnAt = block.GetPosition();
+            spawnAt += block.WorldMatrix.Up;
+            createNPCatPos(spawnAt, npc_subtype);
+        }
+        
     }
 }

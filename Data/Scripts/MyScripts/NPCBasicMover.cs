@@ -36,6 +36,8 @@ namespace NPCMod {
         private NPCDataAnimator.MovementMode movementMode = NPCDataAnimator.MovementMode.Standing;
         public int stuckTimer;
         public bool wasStuck;
+        private readonly string subtypeID;
+        private readonly float useForce;
 
         private IMyCubeBlock relativeTo;
         private Vector3 initialOffsetRotation;
@@ -44,20 +46,31 @@ namespace NPCMod {
         private bool forceFast;
 
         public NPCBasicMover(NPCDataAnimator animator, int range, float damage,
-            float attacksPerSecond) {
+            float attacksPerSecond, string subtypeId, float useForce) {
             this.animator = animator;
+            subtypeID = subtypeId;
+            this.useForce = useForce;
             this.range = range;
             this.damage = damage;
             this.attacksPerSecond = attacksPerSecond;
         }
 
         public static NPCBasicMover getEngineer(IMySlimBlock npc) {
-            var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, 10f);
+            var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, 6f);
             var basicMover = new NPCBasicMover(npcDataAnimator, 120, 1f,
-                0.5f);
+                1f, "NPC_Basic", 3000);
             npc.CubeGrid.Physics.Friction = 1.5f;
 
             return basicMover;
+        }
+
+        public static NPCBasicMover getElite(IMySlimBlock npc) {
+            var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, 12f);
+            var eliteMover = new NPCBasicMover(npcDataAnimator, 180, 4f,
+                0.5f, "NPC_Elite", 9000);
+            npc.CubeGrid.Physics.Friction = 2f;
+
+            return eliteMover;
         }
 
         internal bool isValid() {
@@ -88,7 +101,7 @@ namespace NPCMod {
                 removeCurrentTarget();
             }
 
-            if (lifetime % 50 == 0 && activeEnemy == null) {
+            if (lifetime % 50 == 0 && (activeEnemy == null || activeEnemy.Closed || activeEnemy.MarkedForClose)) {
                 var enemy = findNearbyEnemy(animator.grid.GetPosition(), range * 1.4f, animator.grid);
 
                 if (enemy == null) return;
@@ -229,7 +242,7 @@ namespace NPCMod {
 
         private static IMyEntity findNearbyEnemy(Vector3 position, float range, IMyCubeGrid npcGrid) {
             if (npcGrid.BigOwners.Count <= 0) {
-                MyLog.Default.WriteLine(npcGrid + " | " + npcGrid.BigOwners);
+                MyLog.Default.WriteLine(npcGrid + " no owner!| " + npcGrid.BigOwners);
                 return null;
             }
 
@@ -255,7 +268,7 @@ namespace NPCMod {
 
                     var blocks = new List<IMySlimBlock>();
                     grid.GetBlocks(blocks);
-                    var isNPC = blocks.Count == 1 && blocks[0].BlockDefinition.Id.SubtypeId.String == "NPC_Test";
+                    var isNPC = blocks.Count == 1 && blocks[0].BlockDefinition.Id.SubtypeId.String.StartsWith("NPC_");
 
                     if (blocks.Count < 3 && !isNPC) continue;
 
@@ -355,7 +368,7 @@ namespace NPCMod {
                 if (missingVector.Length() > 0.5f) {
                     drawDebugLine(grid.WorldMatrix.Translation, correctedDir);
                     correctedDir.Normalize();
-                    grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, correctedDir * 3000, null,
+                    grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, correctedDir * useForce, null,
                         null);
                 }
 

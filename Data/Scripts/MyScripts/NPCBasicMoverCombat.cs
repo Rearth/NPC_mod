@@ -33,6 +33,8 @@ namespace NPCMod {
                     : NPCDataAnimator.MovementMode.Walking;
                 return;
             }
+            
+            drawDebugLine(animator.grid.GetPosition(), activeEnemy.GetPosition(), Color.White);
 
 
             if (attackWaitTime < attacksPerSecond) {
@@ -84,6 +86,7 @@ namespace NPCMod {
 
                 if (targetedBlock != null) {
                     var pos = grid.GridIntegerToWorld(targetedBlock.Position);
+                    if (targetedBlock.FatBlock != null) pos = targetedBlock.FatBlock.WorldAABB.Center;
                     if (hasDirectLOS(pos, activeEnemy))
                         return pos;
                 }
@@ -122,6 +125,7 @@ namespace NPCMod {
                 IMyDestroyableObject destroyable;
 
                 spawnImpactParticle(hitInfo.Position, hitInfo.Normal);
+                spawnLaunchParticle(animator.getMuzzlePosition(), -animator.grid.WorldMatrix.Forward);
                 //spawnLaunchParticle(animator.getMuzzlePosition(), target - animator.getMuzzlePosition());
                 weaponLineAnimator.addAnim(animator.getMuzzlePosition(), hitInfo.Position);
                 //spawnLaunchParticle(animator.grid.GetPosition(), hitInfo.Position - animator.grid.GetPosition());
@@ -156,9 +160,9 @@ namespace NPCMod {
             if (!((MyAPIGateway.Session.Player.GetPosition() - pos).Length() < 150)) return;
             
             MyParticleEffect effect;
-            if (MyParticlesManager.TryCreateParticleEffect("Smoke_NPC_Weapon", ref matrix, ref pos, uint.MaxValue, out effect)) {
-                effect.Velocity = animator.grid.Physics.AngularVelocity;
+            if (MyParticlesManager.TryCreateParticleEffect("Muzzle_Flash_NPC", ref matrix, ref pos, uint.MaxValue, out effect)) {
                 effect.Play();
+                effect.Loop = false;
             }
         }
 

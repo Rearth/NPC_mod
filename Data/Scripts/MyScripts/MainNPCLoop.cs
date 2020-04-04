@@ -33,52 +33,52 @@ namespace NPCMod {
             MyLog.Default.WriteLine("initializing movement animator, getting all npcs");
 
             inited = true;
-            var npcs = getAllNPCs();
-
-            MyLog.Default.WriteLine("found NPCs: " + npcs.Count);
-
-            foreach (var npc in npcs) {
-                try {
-                    if (existsAlready(npc.CubeGrid)) continue;
-
-                    var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, moveSpeed);
-                    var basicMover = new NPCBasicMover(npcDataAnimator, npcWeaponRange, npcWeaponDamage,
-                        npcAttacksPerSecond);
-                    npc.CubeGrid.Physics.Friction = 1f;
-
-                    waiting.Add(basicMover);
-                }
-                catch (KeyNotFoundException ex) {
-                    MyLog.Default.WriteLine("error: " + ex);
-                }
-            }
+//            var npcs = getAllNPCs();
+//
+//            MyLog.Default.WriteLine("found NPCs: " + npcs.Count);
+//
+//            foreach (var npc in npcs) {
+//                try {
+//                    if (existsAlready(npc.CubeGrid)) continue;
+//
+//                    var npcDataAnimator = new NPCDataAnimator(npc.CubeGrid, npc, moveSpeed);
+//                    var basicMover = new NPCBasicMover(npcDataAnimator, npcWeaponRange, npcWeaponDamage,
+//                        npcAttacksPerSecond);
+//                    npc.CubeGrid.Physics.Friction = 1f;
+//
+//                    waiting.Add(basicMover);
+//                }
+//                catch (KeyNotFoundException ex) {
+//                    MyLog.Default.WriteLine("error: " + ex);
+//                }
+//            }
         }
 
         private void initOnce() {
-            MyAPIUtilities.Static.MessageEntered += onChatEntered;
+            //MyAPIUtilities.Static.MessageEntered += onChatEntered;
         }
 
-        private void onChatEntered(string text, ref bool others) {
-            MyLog.Default.WriteLine("got message: " + text);
-            var player = MyAPIGateway.Session.Player;
-            var playerID = player.IdentityId;
-            if (playerID <= 0) return;
-            var pos = player.GetPosition() + player.Character.WorldMatrix.Up;
-
-            if (text.StartsWith("/npc ally")) {
-                for (int i = 0; i < getEndInt(text); i++) {
-                    spawnNPC(playerID, Color.ForestGreen, pos);
-                }
-                MyLog.Default.WriteLine("spawned allied npc");
-                
-            } else if (text.StartsWith("/npc pirate")) {
-                var pirateID = MyAPIGateway.Session.Factions.TryGetFactionByTag("SPRT").Members.First().Value.PlayerId;
-                for (int i = 0; i < getEndInt(text); i++) {
-                    spawnNPC(pirateID, Color.MediumVioletRed, pos);
-                }
-                MyLog.Default.WriteLine("spawned enemy npc");
-            }
-        }
+//        private void onChatEntered(string text, ref bool others) {
+//            MyLog.Default.WriteLine("got message: " + text);
+//            var player = MyAPIGateway.Session.Player;
+//            var playerID = player.IdentityId;
+//            if (playerID <= 0) return;
+//            var pos = player.GetPosition() + player.Character.WorldMatrix.Up;
+//
+//            if (text.StartsWith("/npc ally")) {
+//                for (int i = 0; i < getEndInt(text); i++) {
+//                    spawnNPC(playerID, Color.ForestGreen, pos);
+//                }
+//                MyLog.Default.WriteLine("spawned allied npc");
+//                
+//            } else if (text.StartsWith("/npc pirate")) {
+//                var pirateID = MyAPIGateway.Session.Factions.TryGetFactionByTag("SPRT").Members.First().Value.PlayerId;
+//                for (int i = 0; i < getEndInt(text); i++) {
+//                    spawnNPC(pirateID, Color.MediumVioletRed, pos);
+//                }
+//                MyLog.Default.WriteLine("spawned enemy npc");
+//            }
+//        }
 
         private static int getEndInt(String text) {
             var parts = text.Split(' ');
@@ -86,9 +86,9 @@ namespace NPCMod {
             return int.Parse(last);
         }
 
-        public static IMyEntity spawnNPC(long owner, Vector3 color, Vector3 position) {
+        public static IMyEntity spawnNPC(long owner, Vector3 color, Vector3 position, string subTypeID) {
             var id = MyRandom.Instance.Next(100, 1000000);
-            var entity = NPCGridUtilities.SpawnBlock("NPC_Test", "npc_" + id, color, true, true, false, true, true, owner) as IMyCubeGrid;
+            var entity = NPCGridUtilities.SpawnBlock(subTypeID, "npc_" + id, color, true, true, false, true, true, owner) as IMyCubeGrid;
             
             if (entity != null) {
                 var matrix = entity.WorldMatrix;

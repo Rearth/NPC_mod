@@ -42,7 +42,7 @@ namespace NPCMod {
         }
 
         public Vector3 getMuzzlePosition() {
-            return grid.GetPosition() + grid.WorldMatrix.Up * 1.5f + grid.WorldMatrix.Forward * 0.6f;
+            return grid.GetPosition() + grid.WorldMatrix.Up * 1.5f - grid.WorldMatrix.Forward * 0.6f;
         }
 
         public float getSpeed(MovementMode mode) {
@@ -54,8 +54,8 @@ namespace NPCMod {
         }
 
         private float getAnimationSpeed() {
-            return relativeMoveSpeed * 0.5f;
-            //return grid.Physics.LinearVelocity.Length() * 0.75f;
+            //return relativeMoveSpeed * 0.5f;
+            return grid.Physics.LinearVelocity.Length() * 0.6f;
         }
 
         public void updateRender(MovementMode mode) {

@@ -50,7 +50,7 @@ namespace NPCMod {
                 MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
                     "NPC_Control_block");
             spawnButton.Title = MyStringId.GetOrCompute("Spawn NPC");
-            spawnButton.Action = OnSpawnNPC;
+            spawnButton.Action = OnSpawnClicked;
 
             var recordPoints =
                 MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
@@ -68,7 +68,7 @@ namespace NPCMod {
 
             var spawnAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block");
             spawnAction.Name = new StringBuilder("Spawn NPC");
-            spawnAction.Action = OnSpawnNPC;
+            spawnAction.Action = OnSpawnClicked;
 
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(spawnButton);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(recordPoints);
@@ -96,22 +96,9 @@ namespace NPCMod {
             block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
         }
 
-        private static void OnSpawnNPC(IMyTerminalBlock block) {
-            //TODO
-            MyLog.Default.WriteLine("clicked spawn NPC");
-            var spawnAt = block.GetPosition();
-            spawnAt += block.WorldMatrix.Up;
-            var color = block.SlimBlock.ColorMaskHSV;
-            var entity = MainNPCLoop.spawnNPC(block.OwnerId, color, spawnAt);
-
-            var gridBlocks = new List<IMySlimBlock>();
-            (entity as IMyCubeGrid)?.GetBlocks(gridBlocks);
-            var npc = NPCBasicMover.getEngineer(gridBlocks.First());
-            block.GameLogic.GetAs<NPCControlBlock>()?.addNPC(npc);
-
-            MyLog.Default.WriteLine("terminal block id: " + block.EntityId);
-
-            block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
+        private static void OnSpawnClicked(IMyTerminalBlock block) {
+            
+            block.GameLogic.GetAs<NPCControlBlock>()?.spawnNPCTriggered();
         }
 
         private static long getSelectedID(IMyTerminalBlock block) {
