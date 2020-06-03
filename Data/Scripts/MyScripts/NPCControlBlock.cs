@@ -17,7 +17,8 @@ using VRageMath;
 using ProtoBuf;
 
 namespace NPCMod {
-    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block", "NPC_Control_elite")]
+    [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block",
+        "NPC_Control_elite")]
     public class NPCControlBlock : MyGameLogicComponent {
         public enum NPCMode {
             patrol = 0,
@@ -37,8 +38,8 @@ namespace NPCMod {
         private NPCMode selectedMode;
         private Dictionary<int, Vector3> offsets = new Dictionary<int, Vector3>();
         private Dictionary<int, int> patrolProgress = new Dictionary<int, int>();
-        private Vector3 initialPatrolRotation;
         private int ticks = 0;
+        private int targetCount;
 
         //delete marker
         private int deleteMarkerAt;
@@ -112,6 +113,7 @@ namespace NPCMod {
                     break;
                 case NPCMode.stand:
                     standAtPoint(block);
+                    NPCBasicMover.drawDebugLine(this.block.WorldMatrix.Translation, localToWorldPos(block, standPoint), Color.Gold);
                     break;
                 case NPCMode.follow:
                     followPlayer(block);
@@ -126,7 +128,7 @@ namespace NPCMod {
         private void standAtPoint(IMyCubeBlock block) {
             foreach (var npc in npcsSpawned) {
                 if (npc.getWaypointCount() == 0) {
-                    npc.addWaypoint(standPoint, block, initialPatrolRotation);
+                    npc.addWaypoint(standPoint, block);
                 }
             }
         }
@@ -147,15 +149,15 @@ namespace NPCMod {
                     patrolProgress[npc.ID] = 0;
 
                 var progress = patrolProgress[npc.ID];
-                var offset = patrolPoints[progress];
-                
+                var first = patrolPoints[progress];
+
                 npc.clearWaypointsConservingEnemy();
-                npc.addWaypoint(offset, this.block, initialPatrolRotation);
+                npc.addWaypoint(first, this.block);
 
                 //check if npc is close enough
-                var dist = Vector3.Distance(npc.getGlobalPos(patrolPoints[progress]), npc.animator.grid.GetPosition());
-                
-                if (dist < 1.5f || npc.wasStuck) {
+                var dist = Vector3.Distance(localToWorldPos(block, first), npc.animator.grid.GetPosition());
+
+                if (dist < 1.8f || npc.wasStuck) {
                     //point reached
                     progress++;
                     npc.wasStuck = false;
@@ -192,13 +194,12 @@ namespace NPCMod {
             if (recordingPoints && MyAPIGateway.Input.IsNewKeyPressed(MyKeys.U) &&
                 MyAPIGateway.Input.IsAnyShiftKeyPressed()) {
                 //record new point
-                var pos = MyAPIGateway.Session.Player.GetPosition() - block.GetPosition();
                 var globalPos = MyAPIGateway.Session.Player.GetPosition();
+                var pos = worldToLocalPos(block, globalPos);
                 switch (selectedMode) {
                     case NPCMode.patrol:
                         patrolPoints.Add(pos);
                         createPatrolPointHUD(globalPos);
-                        initialPatrolRotation = block.WorldMatrix.Forward;
                         break;
                     case NPCMode.attack:
                         var tempPoint = getAttackPos();
@@ -212,13 +213,23 @@ namespace NPCMod {
                         standPoint = pos;
                         createTempMarker("Guard point", 5, globalPos);
                         stopRecordingPoints();
-                        initialPatrolRotation = block.WorldMatrix.Forward;
                         break;
                     case NPCMode.follow:
                         MyLog.Default.WriteLine("invalid state, recorded point in follow mode");
                         break;
                 }
             }
+        }
+
+        public static Vector3 worldToLocalPos(IMyCubeBlock referenceBlock, Vector3 worldPosition) {
+            
+            Vector3D referenceWorldPosition = referenceBlock.WorldMatrix.Translation;
+            Vector3D worldDirection = worldPosition - referenceWorldPosition;
+            return Vector3D.TransformNormal(worldDirection, MatrixD.Transpose(referenceBlock.WorldMatrix)); //note that we transpose to go from world -> body
+        }
+
+        public static Vector3 localToWorldPos(IMyCubeBlock referenceBlock, Vector3 localPosition) {
+            return Vector3D.Transform(localPosition, referenceBlock.WorldMatrix);
         }
 
         private Vector3 getAttackPos() {
@@ -438,10 +449,9 @@ namespace NPCMod {
             }
 
             public settingsData(NPCMode selectedMode, Dictionary<int, Vector3> offsets,
-                Dictionary<int, int> patrolProgress, Vector3 initialPatrolRotation, List<Vector3> patrolPoints,
+                Dictionary<int, int> patrolProgress, List<Vector3> patrolPoints,
                 Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations) {
                 this.selectedMode = selectedMode;
-                this.initialPatrolRotation = initialPatrolRotation;
                 this.patrolPoints = patrolPoints;
                 this.standPoint = standPoint;
                 this.attackPoint = attackPoint;
@@ -464,7 +474,7 @@ namespace NPCMod {
             try {
                 var spawnLocations = npcsSpawned.Select(elem => elem.animator.grid.GetPosition())
                     .Select(dummy => (Vector3) dummy).ToList();
-                var settings = new settingsData(selectedMode, offsets, patrolProgress, initialPatrolRotation,
+                var settings = new settingsData(selectedMode, offsets, patrolProgress,
                     patrolPoints, standPoint, attackPoint, spawnLocations);
                 var text = Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(settings));
 
@@ -482,7 +492,6 @@ namespace NPCMod {
             var res = MyAPIGateway.Utilities.SerializeFromBinary<settingsData>(Convert.FromBase64String(text));
 
             selectedMode = res.selectedMode;
-            initialPatrolRotation = res.initialPatrolRotation;
             if (res.patrolPoints != null)
                 patrolPoints = res.patrolPoints;
             standPoint = res.standPoint;
@@ -514,16 +523,15 @@ namespace NPCMod {
                 case "NPC_Elite":
                     npc = NPCBasicMover.getElite(gridBlocks.First());
                     break;
-                        
             }
+
             block.GameLogic.GetAs<NPCControlBlock>()?.addNPC(npc);
         }
 
         public void spawnNPCTriggered() {
             var spawnAt = block.GetPosition();
-            spawnAt += block.WorldMatrix.Up;
+            spawnAt += block.WorldMatrix.Up * 2;
             createNPCatPos(spawnAt, npc_subtype);
         }
-        
     }
 }

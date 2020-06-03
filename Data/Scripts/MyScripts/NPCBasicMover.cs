@@ -12,19 +12,11 @@ using VRageMath;
 
 namespace NPCMod {
     public partial class NPCBasicMover {
-        //never use this directly
-        private Vector3 currentMovementTargetInternal;
-        private Vector3 intermediateTargetInternal;
+        
+        private Vector3 CurrentMovementTarget => waypointList.Count > 0 ? waypointList.First().getPos() : intermediateTarget;
 
-        private Vector3 CurrentMovementTarget {
-            get { return getGlobalPos(currentMovementTargetInternal); }
-            set { currentMovementTargetInternal = toLocalPos(value); }
-        }
-        private Vector3 intermediateTarget {
-            get { return getGlobalPos(intermediateTargetInternal); }
-            set { intermediateTargetInternal = toLocalPos(value); }
-        }
-
+        private Vector3 intermediateTarget;
+        
         public int ID = MyRandom.Instance.Next(0, int.MaxValue);
 
         internal readonly NPCDataAnimator animator;
@@ -36,11 +28,9 @@ namespace NPCMod {
         private NPCDataAnimator.MovementMode movementMode = NPCDataAnimator.MovementMode.Standing;
         public int stuckTimer;
         public bool wasStuck;
-        private readonly string subtypeID;
         private readonly float useForce;
 
         private IMyCubeBlock relativeTo;
-        private Vector3 initialOffsetRotation;
 
         private Vector3 lastPos;
         private bool forceFast;
@@ -48,7 +38,6 @@ namespace NPCMod {
         public NPCBasicMover(NPCDataAnimator animator, int range, float damage,
             float attacksPerSecond, string subtypeId, float useForce) {
             this.animator = animator;
-            subtypeID = subtypeId;
             this.useForce = useForce;
             this.range = range;
             this.damage = damage;
@@ -80,6 +69,8 @@ namespace NPCMod {
 
         internal void doUpdate() {
             if (!isValid()) return;
+            
+            if (MainNPCLoop.DEBUG) animator.grid.Physics.DebugDraw();
 
             updateWaypoints();
 
@@ -94,7 +85,6 @@ namespace NPCMod {
 
             checkStuck();
             waypointReachedCheck();
-            assignFirstWaypoint();
 
             if (activeEnemy != null &&
                 Vector3.Distance(activeEnemy.GetPosition(), animator.grid.GetPosition()) > range * 2f) {
@@ -139,9 +129,9 @@ namespace NPCMod {
             waypointList.Add(new waypoint {targetPos = target});
         }
 
-        public void addWaypoint(Vector3 target, IMyCubeBlock relativeTo, Vector3 initialPatrolRotation) {
+        public void addWaypoint(Vector3 target, IMyCubeBlock relativeTo) {
             if (target.Equals(Vector3.Zero) || Vector3.Distance(target, animator.grid.GetPosition()) < 2.5f) return;
-            waypointList.Add(new waypoint {targetPos = target, relativeTo = relativeTo, rot = initialPatrolRotation});
+            waypointList.Add(new waypoint {targetPos = target, relativeTo = relativeTo});
         }
 
         public void addWaypoint(IMyEntity target) {
@@ -154,13 +144,9 @@ namespace NPCMod {
         }
 
         private void waypointReachedCheck() {
-            if (Vector3.Distance(animator.grid.GetPosition(), CurrentMovementTarget) < 2f) {
+            if (Vector3.Distance(animator.grid.GetPosition(), CurrentMovementTarget) < 1.5f) {
                 //point reached
                 removeCurrentTarget();
-                if (waypointList.Count > 0 && waypointList[0].targetPos != Vector3.Zero) {
-                    waypointList[0] = new waypoint
-                        {targetPos = toSurfacePos(waypointList[0].targetPos, animator.grid, waypointList[0].targetPos), relativeTo = waypointList[0].relativeTo, rot = waypointList[0].rot};
-                }
             }
         }
 
@@ -182,7 +168,6 @@ namespace NPCMod {
         }
 
         private void removeCurrentTarget() {
-            CurrentMovementTarget = Vector3.Zero;
             activeEnemy = null;
             if (waypointList.Count > 0)
                 waypointList.RemoveAt(0);
@@ -191,33 +176,7 @@ namespace NPCMod {
         public Vector3 getCurrentWaypoint() {
             return CurrentMovementTarget;
         }
-
-        private void assignFirstWaypoint() {
-            if (waypointList.Count <= 0) return;
-
-            var waypoint = waypointList[0];
-
-            if (waypoint.trackedEntity != null &&
-                (waypoint.trackedEntity.Closed || waypoint.trackedEntity.MarkedForClose)) {
-                removeCurrentTarget();
-            }
-
-            relativeTo = waypoint.relativeTo;
-            initialOffsetRotation = waypoint.rot;
-
-            if (waypoint.targetPos != Vector3.Zero && waypoint.relativeTo != null) {
-                currentMovementTargetInternal = waypoint.targetPos;
-                return;
-            }
-
-            if (waypoint.targetPos != Vector3.Zero) CurrentMovementTarget = waypoint.targetPos;
-            if (waypoint.trackedEntity != null) {
-                var dist = waypoint.trackedEntity.GetPosition() - animator.grid.GetPosition();
-                CurrentMovementTarget =
-                    dist.Length() > 30 ? waypoint.trackedEntity.GetPosition() : animator.grid.GetPosition();
-            }
-        }
-
+        
         private static IMyPlayer findByCharacter(IMyCharacter character) {
             var players = new List<IMyPlayer>();
             MyAPIGateway.Players.GetPlayers(players);
@@ -301,9 +260,11 @@ namespace NPCMod {
             var ownPos = grid.WorldMatrix.Translation;
             var down = grid.Physics.Gravity;
             down.Normalize();
+            if (relativeTo != null)
+                NPCBasicMover.drawDebugLine(ownPos, CurrentMovementTarget, Color.Gold);
 
             if (Vector3.Distance(CurrentMovementTarget, ownPos) < 1f) {
-                CurrentMovementTarget = Vector3.Zero;
+                hasTarget = false;
             }
 
             var downRayTarget = ownPos + down * 1.5f;
@@ -341,8 +302,7 @@ namespace NPCMod {
             if (hasTarget) {
                 if (MainNPCLoop.ticks % 40 == 0) {
                     var distToTarget = CurrentMovementTarget - animator.grid.GetPosition();
-                    intermediateTarget =
-                        getIntermediateMovementTarget(grid, CurrentMovementTarget, distToTarget.Length());
+                    intermediateTarget = getIntermediateMovementTarget(grid, CurrentMovementTarget, distToTarget.Length());
                 }
 
 
@@ -507,29 +467,12 @@ namespace NPCMod {
         public Vector3 getGlobalPos(Vector3 pos) {
             if (relativeTo == null) return pos;
 
-            var offset = pos;
-            Vector3 curDir = relativeTo.WorldMatrix.Forward;
-
-            var angle = (float) Math.Acos(initialOffsetRotation.Dot(curDir));
-            var axis = initialOffsetRotation.Cross(curDir);
-
-            var curOffset = Vector3.Transform(offset, Matrix.CreateFromAxisAngle(axis, angle));
-
-            return relativeTo.GetPosition() + curOffset;
+            return NPCControlBlock.localToWorldPos(relativeTo, pos);
         }
 
         private Vector3 toLocalPos(Vector3 pos) {
             if (relativeTo == null) return pos;
-
-            initialOffsetRotation = relativeTo.WorldMatrix.Forward;
-            return pos - relativeTo.GetPosition();
-        }
-
-        private struct waypoint {
-            internal IMyEntity trackedEntity;
-            internal Vector3 targetPos;
-            internal IMyCubeBlock relativeTo;
-            internal Vector3 rot;
+            return NPCControlBlock.worldToLocalPos(relativeTo, pos);
         }
 
         private Vector3 projectOnPlane(Vector3 vector, Vector3 planeNormal) {
@@ -570,6 +513,19 @@ namespace NPCMod {
             dir.Normalize();
             var to = from + dir * dist;
             drawDebugLine(from, to, Color.Aquamarine.ToVector4());
+        }
+
+        private struct waypoint {
+            internal IMyEntity trackedEntity;
+            internal Vector3 targetPos;
+            internal IMyCubeBlock relativeTo;
+
+            public Vector3 getPos() {
+                if (trackedEntity != null && !trackedEntity.Closed && !trackedEntity.MarkedForClose)
+                    return trackedEntity.GetPosition();
+
+                return relativeTo != null ? NPCControlBlock.localToWorldPos(relativeTo, targetPos) : targetPos;
+            }
         }
     }
 }

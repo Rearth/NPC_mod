@@ -24,7 +24,7 @@ namespace NPCMod {
         
         
         private int idleTicks = 0;
-        private static readonly float maxAngle = 160;
+        private static readonly float maxAngle = 140;
         private static readonly float bottomExtraAngle = -0.2f;
         private float animProgress;
         private bool ascending = true;
