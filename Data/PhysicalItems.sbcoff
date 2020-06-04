@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<Definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <PhysicalItems>
+        <PhysicalItem>
+            <Id>
+                <TypeId>Component</TypeId>
+                <SubtypeId>NPC_Token_Basic</SubtypeId>
+            </Id>
+            <DisplayName>Mercenary engineer token</DisplayName>
+            <Icon>Textures\GUI\Icons\ore_rock.dds</Icon>
+            <Size>
+                <X>0.07</X>
+                <Y>0.07</Y>
+                <Z>0.07</Z>
+            </Size>
+            <Mass>1</Mass>
+            <Volume>0.37</Volume>
+            <Model>Models\Components\Sphere.mwm</Model>
+            <PhysicalMaterial>Stone</PhysicalMaterial>
+            <IconSymbol>IconSymbol_Stone</IconSymbol>
+            <MinimalPricePerUnit>1000</MinimalPricePerUnit>
+            <MinimumOfferAmount>1</MinimumOfferAmount>
+            <MaximumOfferAmount>10</MaximumOfferAmount>
+            <MinimumOrderAmount>1</MinimumOrderAmount>
+            <MaximumOrderAmount>10</MaximumOrderAmount>
+            <CanPlayerOrder>true</CanPlayerOrder>
+
+            <MinimumAcquisitionAmount>0</MinimumAcquisitionAmount>
+            <MaximumAcquisitionAmount>10</MaximumAcquisitionAmount>
+        </PhysicalItem>
+    </PhysicalItems>
+</Definitions>

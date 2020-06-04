@@ -1,19 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Sandbox.Game.EntityComponents;
-using Sandbox.Game.Screens.Helpers;
 using Sandbox.ModAPI;
-using Sandbox.ModAPI.Interfaces;
 using Sandbox.ModAPI.Interfaces.Terminal;
-using VRage.Game;
-using VRage.Game.ModAPI;
-using VRage.Input;
+using VRage;
+using VRage.Game.ModAPI.Ingame;
 using VRage.ModAPI;
 using VRage.Utils;
 using VRageMath;
-using VRageRender;
 
 namespace NPCMod {
     public static class TerminalGroupSelector {
@@ -35,7 +30,6 @@ namespace NPCMod {
 
         public static void createControls() {
             MyLog.Default.WriteLine("creating controls for npc controller");
-
             var groupSelection = MyAPIGateway.TerminalControls
                 .CreateControl<IMyTerminalControlCombobox, IMyCargoContainer>(
                     "NPC_Control_block");
@@ -44,13 +38,16 @@ namespace NPCMod {
             groupSelection.Setter = (block, id) => OnItemSelected(block, id.ToString());
             groupSelection.Getter = getSelectedID;
             groupSelection.Tooltip = MyStringId.GetOrCompute("TODO");
-            MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(groupSelection);
+            groupSelection.Visible = isNPCControlBlock;
 
             var spawnButton =
                 MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
                     "NPC_Control_block");
             spawnButton.Title = MyStringId.GetOrCompute("Spawn NPC");
             spawnButton.Action = OnSpawnClicked;
+            spawnButton.Enabled = spawnEnabled;
+            spawnButton.Visible = isNPCControlBlock;
+            spawnButton.Tooltip = MyStringId.GetOrCompute("Requires contract tokens, purchasable at trade stations");
 
             var recordPoints =
                 MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
@@ -58,6 +55,7 @@ namespace NPCMod {
             recordPoints.Title = MyStringId.GetOrCompute("Record Points");
             recordPoints.Action = OnRecordPoints;
             recordPoints.Enabled = startRecordEnabled;
+            recordPoints.Visible = isNPCControlBlock;
 
             var stopRecord =
                 MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, IMyCargoContainer>(
@@ -65,23 +63,41 @@ namespace NPCMod {
             stopRecord.Title = MyStringId.GetOrCompute("Stop recording");
             stopRecord.Action = OnStopRecord;
             stopRecord.Enabled = stopRecordEnabled;
+            stopRecord.Visible = isNPCControlBlock;
 
-            var spawnAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block");
-            spawnAction.Name = new StringBuilder("Spawn NPC");
-            spawnAction.Action = OnSpawnClicked;
-
+            MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(groupSelection);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(spawnButton);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(recordPoints);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(stopRecord);
-            MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(spawnAction);
+        }
+
+        private static bool isNPCControlBlock(IMyTerminalBlock arg) {
+            
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+            return control != null;
+        }
+
+        private static bool spawnEnabled(IMyTerminalBlock arg) {
+
+            if (!isNPCControlBlock(arg)) return false;
+
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+
+            if (control.isAtLimit()) return false;
+            
+            var tokenString = control.getTokenString();
+            return arg.GetInventory().ContainItems((MyFixedPoint) 1f, new MyItemType("MyObjectBuilder_Component", tokenString));
         }
 
         private static bool stopRecordEnabled(IMyTerminalBlock block) {
+
+            if (!isNPCControlBlock(block)) return false;
             var state = block.GameLogic.GetAs<NPCControlBlock>()?.recordingPoints;
             return state != null && (bool) state;
         }
 
         private static bool startRecordEnabled(IMyTerminalBlock block) {
+            if (!isNPCControlBlock(block)) return false;
             var state = !block.GameLogic.GetAs<NPCControlBlock>()?.recordingPoints;
             return state != null && (bool) state;
         }

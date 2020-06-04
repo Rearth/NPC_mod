@@ -207,47 +207,56 @@ namespace NPCMod {
 
             var owner = npcGrid.BigOwners[0];
             var faction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(owner);
+            if (faction == null) return null;
 
             var entitiesFound = new HashSet<IMyEntity>();
             MyAPIGateway.Entities.GetEntities(entitiesFound, entity => entity is IMyCubeGrid || entity is IMyCharacter);
 
             foreach (var entity in entitiesFound) {
-                long entityOwner = 0;
-
-                var character = entity as IMyCharacter;
-                if (character != null) {
-                    var player = findByCharacter(character);
-                    if (player != null) {
-                        entityOwner = player.IdentityId;
-                    }
-                }
-                else {
-                    var grid = entity as IMyCubeGrid;
-                    if (grid == null || grid.BigOwners.Count < 1) continue;
-
-                    var blocks = new List<IMySlimBlock>();
-                    grid.GetBlocks(blocks);
-                    var isNPC = blocks.Count == 1 && blocks[0].BlockDefinition.Id.SubtypeId.String.StartsWith("NPC_");
-
-                    if (blocks.Count < 3 && !isNPC) continue;
-
-                    entityOwner = grid.BigOwners[0];
-                    //gridFaction = MyAPIGateway.Session.Factions.TryGetPlayerFaction(gridOwner);
-                }
-
-                if (entityOwner == 0) continue;
-                var isEnemy = faction.IsEnemy(entityOwner);
-
-                var dist = Vector3.Distance(position, entity.GetPosition());
-
-                //MyLog.Default.WriteLine("found entity: " + entity + " | " + entity.DisplayName + " | " + entity.GetType() + " | faction: " + gridFaction.Name + " enemy: " + isEnemy + " dist: " + dist);
-                //MyLog.Default.Flush();
-                if (dist < range && isEnemy) {
-                    return entity;
-                }
+                IMyEntity findNearbyEnemy1;
+                if (processPotentialEnemy(position, range, entity, faction, out findNearbyEnemy1)) return findNearbyEnemy1;
             }
 
             return null;
+        }
+
+        private static bool processPotentialEnemy(Vector3 position, float range, IMyEntity entity, IMyFaction faction,
+            out IMyEntity findNearbyEnemy1) {
+            findNearbyEnemy1 = null;
+            long entityOwner = 0;
+
+            var character = entity as IMyCharacter;
+            if (character != null) {
+                var player = findByCharacter(character);
+                if (player != null) {
+                    entityOwner = player.IdentityId;
+                }
+            }
+            else {
+                var grid = entity as IMyCubeGrid;
+                if (grid == null || grid.BigOwners.Count < 1) return false;
+
+                var blocks = new List<IMySlimBlock>();
+                grid.GetBlocks(blocks);
+                var isNPC = blocks.Count == 1 && blocks[0].BlockDefinition.Id.SubtypeId.String.StartsWith("NPC_");
+
+                if (blocks.Count < 3 && !isNPC) return false;
+
+                entityOwner = grid.BigOwners[0];
+            }
+
+            if (entityOwner == 0) return false;
+            var isEnemy = faction.IsEnemy(entityOwner);
+
+            var dist = Vector3.Distance(position, entity.GetPosition());
+            if (dist < range && isEnemy) {
+                {
+                    findNearbyEnemy1 = entity;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void updateMovement() {

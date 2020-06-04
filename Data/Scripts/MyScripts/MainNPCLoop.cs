@@ -1,20 +1,22 @@
-﻿﻿using System;
+﻿using System;
 using System.Collections.Generic;
- using System.Linq;
- using Sandbox.Game.Entities;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
- using VRage.Game;
- using VRage.Game.Components;
+using VRage.Game;
+using VRage.Game.Components;
 using VRage.Game.ModAPI;
- using VRage.Library.Utils;
- using VRage.ModAPI;
+using VRage.Game.ModAPI.Ingame;
+using VRage.Library.Utils;
+using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
+using IMyCubeGrid = VRage.Game.ModAPI.IMyCubeGrid;
+using IMyEntity = VRage.ModAPI.IMyEntity;
+using IMySlimBlock = VRage.Game.ModAPI.IMySlimBlock;
 
 namespace NPCMod {
     [MySessionComponentDescriptor(MyUpdateOrder.AfterSimulation)]
     public class MainNPCLoop : MySessionComponentBase {
-        
         private Boolean inited;
         private readonly List<NPCBasicMover> npcBasicMovers = new List<NPCBasicMover>();
         private readonly List<NPCBasicMover> waiting = new List<NPCBasicMover>();
@@ -25,14 +27,13 @@ namespace NPCMod {
         private static readonly int npcWeaponRange = 80;
         private static readonly float npcWeaponDamage = 1;
         private static readonly float npcAttacksPerSecond = 0.5f;
-        
+
         public static bool DEBUG = true;
-        
+
 
         private void init() {
             MyLog.Default.WriteLine("initializing movement animator, getting all npcs");
 
-            inited = true;
 //            var npcs = getAllNPCs();
 //
 //            MyLog.Default.WriteLine("found NPCs: " + npcs.Count);
@@ -55,7 +56,8 @@ namespace NPCMod {
         }
 
         private void initOnce() {
-            //MyAPIUtilities.Static.MessageEntered += onChatEntered;
+            //Sandbox.Game.MyVisualScriptLogicProvider.
+            inited = true;
         }
 
 //        private void onChatEntered(string text, ref bool others) {
@@ -88,8 +90,10 @@ namespace NPCMod {
 
         public static IMyEntity spawnNPC(long owner, Vector3 color, Vector3 position, string subTypeID) {
             var id = MyRandom.Instance.Next(100, 1000000);
-            var entity = NPCGridUtilities.SpawnBlock(subTypeID, "npc_" + id, color, true, true, false, true, true, owner) as IMyCubeGrid;
-            
+            var entity =
+                NPCGridUtilities.SpawnBlock(subTypeID, "npc_" + id, color, true, true, false, true, true, owner) as
+                    IMyCubeGrid;
+
             if (entity != null) {
                 var matrix = entity.WorldMatrix;
                 matrix.Translation = position;
@@ -105,7 +109,7 @@ namespace NPCMod {
             try {
                 if (!inited) {
                     //init();
-                    //initOnce();
+                    initOnce();
                     return;
                 }
 
@@ -133,6 +137,7 @@ namespace NPCMod {
                     if (targetEntity != null) {
                         npcBasicMover.addWaypoint(targetEntity);
                     }
+
                     //npcBasicMover.ActiveEnemy = targetEntity;
                     npcBasicMover.doUpdate();
                 }

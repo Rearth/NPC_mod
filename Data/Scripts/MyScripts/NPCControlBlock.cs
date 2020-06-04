@@ -15,6 +15,12 @@ using VRage.ObjectBuilders;
 using VRage.Utils;
 using VRageMath;
 using ProtoBuf;
+using VRage;
+using VRage.Game.ModAPI.Ingame;
+using IMyCubeBlock = VRage.Game.ModAPI.IMyCubeBlock;
+using IMyCubeGrid = VRage.Game.ModAPI.IMyCubeGrid;
+using IMyEntity = VRage.ModAPI.IMyEntity;
+using IMySlimBlock = VRage.Game.ModAPI.IMySlimBlock;
 
 namespace NPCMod {
     [MyEntityComponentDescriptor(typeof(MyObjectBuilder_CargoContainer), false, "NPC_Control_block",
@@ -27,19 +33,21 @@ namespace NPCMod {
             follow = 3
         }
 
-        private string npc_subtype;
-
-        private static bool controlsCreated;
 
         private static readonly Guid SETTINGSGUID = new Guid("98f1332d-83a1-4f7a-9c28-2f9fb1b90b77");
+        public static readonly int maxcount = 10;
+
+        private static bool controlsCreated;
 
         private IMyCubeBlock block;
         private List<NPCBasicMover> npcsSpawned = new List<NPCBasicMover>();
         private NPCMode selectedMode;
         private Dictionary<int, Vector3> offsets = new Dictionary<int, Vector3>();
         private Dictionary<int, int> patrolProgress = new Dictionary<int, int>();
-        private int ticks = 0;
+        private int ticks;
         private int targetCount;
+        private int spawnProgress;
+        private string npc_subtype;
 
         //delete marker
         private int deleteMarkerAt;
@@ -67,6 +75,7 @@ namespace NPCMod {
             if (!controlsCreated) {
                 TerminalGroupSelector.createControls();
                 controlsCreated = true;
+                //addStoreTrades();
             }
 
             var terminalBlock = ((IMyTerminalBlock) block);
@@ -75,7 +84,34 @@ namespace NPCMod {
             if (block.BlockDefinition.SubtypeId.Equals("NPC_Control_elite")) npc_subtype = "NPC_Elite";
         }
 
+//        private void addStoreTrades() {
+//            MyLog.Default.WriteLine("adding store trades");
+//            
+//            var entitiesFound = new HashSet<IMyEntity>();
+//            MyAPIGateway.Entities.GetEntities(entitiesFound, entity => entity.GetType() == typeof(MyCubeGrid));
+//
+//            foreach (var entity in entitiesFound) {
+//                MyLog.Default.WriteLine("found grid: " + entity);
+//                var grid = entity as IMyCubeGrid;
+//                var blocks = new List<IMySlimBlock>();
+//
+//                grid?.GetBlocks(blocks, block => block.BlockDefinition.Id.SubtypeName.Equals("StoreBlock"));
+//
+//                foreach (var storeBlock in blocks) {
+//                    MyLog.Default.WriteLine("found store: " + storeBlock);
+//                    var store = storeBlock.FatBlock as IMyStoreBlock;
+//                    if (store == null) continue;
+//                    long id;
+//                    var definition = MyDefinitionId.Parse("MyObjectBuilder_Component/NPC_Token_Basic");
+//                    var res = store.InsertOffer(
+//                        new MyStoreItemDataSimple(definition, 5, 5000), out id);
+//                    MyLog.Default.WriteLine(res.ToString());
+//                }
+//            }
+//        }
+
         public override void UpdateAfterSimulation() {
+            //addStoreTrades();
             foreach (var npc in npcsSpawned) {
                 try {
                     npc.doUpdate();
@@ -99,6 +135,7 @@ namespace NPCMod {
 
             if (ticks < 6) return;
 
+            updateNPCSpawn();
             updateNPCList();
             updateMode(block);
             updateInput();
@@ -113,7 +150,8 @@ namespace NPCMod {
                     break;
                 case NPCMode.stand:
                     standAtPoint(block);
-                    NPCBasicMover.drawDebugLine(this.block.WorldMatrix.Translation, localToWorldPos(block, standPoint), Color.Gold);
+                    NPCBasicMover.drawDebugLine(this.block.WorldMatrix.Translation, localToWorldPos(block, standPoint),
+                        Color.Gold);
                     break;
                 case NPCMode.follow:
                     followPlayer(block);
@@ -123,6 +161,17 @@ namespace NPCMod {
             updateTerminalInformation();
 
             if (ticks % 600 == 0) saveSettings();
+        }
+
+        private void updateNPCSpawn() {
+            var curCount = npcsSpawned.Count;
+            spawnProgress += 1;
+            if (curCount < targetCount && spawnProgress > 200) {
+                var spawnAt = block.GetPosition();
+                spawnAt += block.WorldMatrix.Up * 2;
+                createNPCatPos(spawnAt, npc_subtype);
+                spawnProgress = 0;
+            }
         }
 
         private void standAtPoint(IMyCubeBlock block) {
@@ -222,10 +271,10 @@ namespace NPCMod {
         }
 
         public static Vector3 worldToLocalPos(IMyCubeBlock referenceBlock, Vector3 worldPosition) {
-            
             Vector3D referenceWorldPosition = referenceBlock.WorldMatrix.Translation;
             Vector3D worldDirection = worldPosition - referenceWorldPosition;
-            return Vector3D.TransformNormal(worldDirection, MatrixD.Transpose(referenceBlock.WorldMatrix)); //note that we transpose to go from world -> body
+            return Vector3D.TransformNormal(worldDirection,
+                MatrixD.Transpose(referenceBlock.WorldMatrix)); //note that we transpose to go from world -> body
         }
 
         public static Vector3 localToWorldPos(IMyCubeBlock referenceBlock, Vector3 localPosition) {
@@ -293,6 +342,7 @@ namespace NPCMod {
             var text = "Settings: ";
             text += "\nMode: " + selectedMode;
             text += "\nNPCs: " + npcsSpawned.Count;
+            text += "\nTarget Count: " + targetCount;
             text += "\nRecording: " + recordingPoints;
 
             switch (selectedMode) {
@@ -332,7 +382,7 @@ namespace NPCMod {
             saveSettings();
         }
 
-        public void addNPC(NPCBasicMover npc) {
+        private void addNPC(NPCBasicMover npc) {
             npcsSpawned.Add(npc);
             var matrix = MyAPIGateway.Session.Player.Character.WorldMatrix;
             var offset = calcOffset(npcsSpawned.Count, matrix.Forward * 2, matrix.Right * 2);
@@ -384,6 +434,19 @@ namespace NPCMod {
                 npcBasicMover.clearWaypointsConservingEnemy();
                 npcBasicMover.setWalkFast(walkFast);
             }
+        }
+
+        public string getTokenString() {
+            if (npc_subtype.Equals("NPC_Basic")) {
+                return "NPC_Token_Basic";
+            }
+            else {
+                return "NPC_Token_Elite";
+            }
+        }
+
+        public bool isAtLimit() {
+            return targetCount >= maxcount;
         }
 
         public static String readStorage(IMyTerminalBlock block, Guid key) {
@@ -439,23 +502,24 @@ namespace NPCMod {
         public class settingsData {
             [ProtoMember(1)] public NPCMode selectedMode;
             [ProtoMember(2)] public List<serializableNPCData> data;
-            [ProtoMember(4)] public Vector3 initialPatrolRotation;
-            [ProtoMember(5)] public List<Vector3> patrolPoints;
-            [ProtoMember(6)] public Vector3 standPoint;
-            [ProtoMember(7)] public Vector3 attackPoint;
-            [ProtoMember(8)] public List<Vector3> spawnLocations;
+            [ProtoMember(3)] public List<Vector3> patrolPoints;
+            [ProtoMember(4)] public Vector3 standPoint;
+            [ProtoMember(5)] public Vector3 attackPoint;
+            [ProtoMember(6)] public List<Vector3> spawnLocations;
+            [ProtoMember(7)] public int targetCount;
 
             public settingsData() {
             }
 
             public settingsData(NPCMode selectedMode, Dictionary<int, Vector3> offsets,
                 Dictionary<int, int> patrolProgress, List<Vector3> patrolPoints,
-                Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations) {
+                Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations, int targetCount) {
                 this.selectedMode = selectedMode;
                 this.patrolPoints = patrolPoints;
                 this.standPoint = standPoint;
                 this.attackPoint = attackPoint;
                 this.spawnLocations = spawnLocations;
+                this.targetCount = targetCount;
 
                 var datas = new List<serializableNPCData>();
                 foreach (var elem in offsets) {
@@ -475,7 +539,7 @@ namespace NPCMod {
                 var spawnLocations = npcsSpawned.Select(elem => elem.animator.grid.GetPosition())
                     .Select(dummy => (Vector3) dummy).ToList();
                 var settings = new settingsData(selectedMode, offsets, patrolProgress,
-                    patrolPoints, standPoint, attackPoint, spawnLocations);
+                    patrolPoints, standPoint, attackPoint, spawnLocations, targetCount);
                 var text = Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(settings));
 
                 writeStorage((IMyTerminalBlock) block, SETTINGSGUID, text);
@@ -496,6 +560,7 @@ namespace NPCMod {
                 patrolPoints = res.patrolPoints;
             standPoint = res.standPoint;
             attackPoint = res.attackPoint;
+            targetCount = res.targetCount;
 
             foreach (var data in res.data) {
                 offsets[data.id] = data.offset;
@@ -529,9 +594,13 @@ namespace NPCMod {
         }
 
         public void spawnNPCTriggered() {
-            var spawnAt = block.GetPosition();
-            spawnAt += block.WorldMatrix.Up * 2;
-            createNPCatPos(spawnAt, npc_subtype);
+            targetCount++;
+            var subtype = getTokenString();
+            var item = block.GetInventory().FindItem(new MyItemType("MyObjectBuilder_Component", subtype));
+            var item2 = block.GetInventory().GetItemByID(item.Value.ItemId);
+            MyLog.Default.WriteLine("data: " + item2.Content.TypeId + " | " + item2.Content.SubtypeName);
+
+            block.GetInventory().RemoveItemAmount(item2, (MyFixedPoint) 1f);
         }
     }
 }

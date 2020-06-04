@@ -15,6 +15,11 @@
       <Center x="0" y="0" z="0" />
       <ModelOffset x="0" y="-0.75" z="0" />
       <Model>Models\NPCModMain.mwm</Model>
+      <InventorySize>
+        <X>1</X>
+        <Y>1</Y>
+        <Z>1</Z>
+      </InventorySize>
       <Components>
         <Component Subtype="Computer" Count="1" />
         <Component Subtype="NPC_Component" Count="1" />
@@ -22,11 +27,6 @@
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
       <EdgeType>Light</EdgeType>
-      <InventorySize>
-        <X>1</X>
-        <Y>1</Y>
-        <Z>1</Z>
-      </InventorySize>
       <PhysicsOption>Convex</PhysicsOption>
       <IsAirTight>false</IsAirTight>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
@@ -54,11 +54,6 @@
       </Components>
       <CriticalComponent Subtype="NPC_Component" Index="0" />
       <EdgeType>Light</EdgeType>
-      <InventorySize>
-        <X>1</X>
-        <Y>1</Y>
-        <Z>1</Z>
-      </InventorySize>
       <PhysicsOption>Convex</PhysicsOption>
       <IsAirTight>false</IsAirTight>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
@@ -84,6 +79,11 @@
         <Component Subtype="NPC_Component" Count="1" />
         <Component Subtype="SteelPlate" Count="1" />
       </Components>
+      <InventorySize>
+        <X>1</X>
+        <Y>1</Y>
+        <Z>1</Z>
+      </InventorySize>
       <CriticalComponent Subtype="NPC_Component" Index="0" />
       <EdgeType>Light</EdgeType>
       <BuildTimeSeconds>15</BuildTimeSeconds>
@@ -112,6 +112,11 @@
         <Component Subtype="NPC_Component" Count="1" />
         <Component Subtype="SteelPlate" Count="1" />
       </Components>
+      <InventorySize>
+        <X>1</X>
+        <Y>1</Y>
+        <Z>1</Z>
+      </InventorySize>
       <CriticalComponent Subtype="SteelPlate" Index="0" />
       <EdgeType>Light</EdgeType>
       <BuildTimeSeconds>15</BuildTimeSeconds>
