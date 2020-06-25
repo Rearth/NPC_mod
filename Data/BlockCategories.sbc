@@ -9,8 +9,6 @@
       <DisplayName>NPC Mod</DisplayName>
       <Name>npc mod disp.</Name>
       <ItemIds>
-        <string>CargoContainer/NPC_Basic</string>
-        <string>CargoContainer/NPC_Elite</string>
         <string>CargoContainer/NPC_Control_block</string>
         <string>CargoContainer/NPC_Control_elite</string>
       </ItemIds>

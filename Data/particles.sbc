@@ -819,7 +819,7 @@
       <DurationMin>0.1</DurationMin>
       <DurationMax>0.1</DurationMax>
       <DistanceMax>200</DistanceMax>
-      <Loop>true</Loop>
+      <Loop>false</Loop>
       <ParticleGenerations>
         <ParticleGeneration Name="Sparks01" Version="2">
           <GenerationType>GPU</GenerationType>

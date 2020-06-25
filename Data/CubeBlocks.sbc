@@ -67,24 +67,41 @@
         <SubtypeId>NPC_Control_block</SubtypeId>
       </Id>
       <DisplayName>NPC Control Station</DisplayName>
-      <Icon>Textures\GUI\Icons\Cubes\container.dds</Icon>
+      <Icon>Textures\GUI\Icons\NPC_Control_Basic.png</Icon>
       <Description>TODO</Description>
       <CubeSize>Large</CubeSize>
       <BlockTopology>TriangleMesh</BlockTopology>
-      <Size x="1" y="1" z="1" />
+      <Size x="1" y="2" z="1" />
       <ModelOffset x="0" y="0" z="0" />
-      <Model>Models\Cubes\Large\CargoContainerSmall.mwm</Model>
+      <Model>Models\controller\training_facility_basic.mwm</Model>
       <Components>
-        <Component Subtype="Computer" Count="1" />
-        <Component Subtype="NPC_Component" Count="1" />
-        <Component Subtype="SteelPlate" Count="1" />
+        <Component Subtype="SteelPlate" Count="200" />
+        <Component Subtype="Construction" Count="50" />
+        <Component Subtype="LargeTube" Count="20" />
+        <Component Subtype="Motor" Count="120" />
+        <Component Subtype="Computer" Count="50" />
+        <Component Subtype="SteelPlate" Count="100" />
       </Components>
+      <CriticalComponent Subtype="Construction" Index="0" />
       <InventorySize>
         <X>1</X>
-        <Y>1</Y>
+        <Y>2</Y>
         <Z>1</Z>
       </InventorySize>
-      <CriticalComponent Subtype="NPC_Component" Index="0" />
+      <MountPoints>
+        <MountPoint Side="Back" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Front" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Bottom" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" Default="true" />
+        <MountPoint Side="Top" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Left" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Right" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+      </MountPoints>
+      <IsAirTight>true</IsAirTight>
+      <BuildProgressModels>
+        <Model BuildPercentUpperBound="0.33" File="Models\Cubes\Large\OxygenGeneratorConstruction_1.mwm" />
+        <Model BuildPercentUpperBound="0.66" File="Models\Cubes\Large\OxygenGeneratorConstruction_2.mwm" />
+        <Model BuildPercentUpperBound="1.00" File="Models\Cubes\Large\OxygenGeneratorConstruction_3.mwm" />
+      </BuildProgressModels>
       <EdgeType>Light</EdgeType>
       <BuildTimeSeconds>15</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
@@ -92,7 +109,6 @@
       <DestroyEffect>BlockDestroyedExplosion_Large</DestroyEffect>
       <DestroySound>WepSmallWarheadExpl</DestroySound>
       <PCU>100</PCU>
-      <IsAirTight>false</IsAirTight>
     </Definition>
     <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
       <Id>
@@ -100,24 +116,43 @@
         <SubtypeId>NPC_Control_elite</SubtypeId>
       </Id>
       <DisplayName>NPC Elite Control Station</DisplayName>
-      <Icon>Textures\GUI\Icons\Cubes\container.dds</Icon>
+      <Icon>Textures\GUI\Icons\NPC_Control_Elite.png</Icon>
       <Description>TODO</Description>
       <CubeSize>Large</CubeSize>
       <BlockTopology>TriangleMesh</BlockTopology>
-      <Size x="1" y="1" z="1" />
+      <Size x="1" y="2" z="1" />
       <ModelOffset x="0" y="0" z="0" />
-      <Model>Models\Cubes\Large\CargoContainerSmall.mwm</Model>
+      <Model>Models\controller\training_facility_elite.mwm</Model>
+      <MountPoints>
+        <MountPoint Side="Back" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Front" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Bottom" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" Default="true" />
+        <MountPoint Side="Top" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Left" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+        <MountPoint Side="Right" StartX="0.1" StartY="0.1" EndX="0.9" EndY="0.9" />
+      </MountPoints>
+      <IsAirTight>true</IsAirTight>
+      <BuildProgressModels>
+        <Model BuildPercentUpperBound="0.33" File="Models\Cubes\Large\OxygenGeneratorConstruction_1.mwm" />
+        <Model BuildPercentUpperBound="0.66" File="Models\Cubes\Large\OxygenGeneratorConstruction_2.mwm" />
+        <Model BuildPercentUpperBound="1.00" File="Models\Cubes\Large\OxygenGeneratorConstruction_3.mwm" />
+      </BuildProgressModels>
       <Components>
-        <Component Subtype="Computer" Count="1" />
-        <Component Subtype="NPC_Component" Count="1" />
-        <Component Subtype="SteelPlate" Count="1" />
+        <Component Subtype="SteelPlate" Count="300" />
+        <Component Subtype="Construction" Count="75" />
+        <Component Subtype="LargeTube" Count="50" />
+        <Component Subtype="Superconductor" Count="150" />
+        <Component Subtype="Motor" Count="200" />
+        <Component Subtype="MetalGrid" Count="20" />
+        <Component Subtype="Computer" Count="100" />
+        <Component Subtype="SteelPlate" Count="200" />
       </Components>
+      <CriticalComponent Subtype="Construction" Index="0" />
       <InventorySize>
         <X>1</X>
-        <Y>1</Y>
+        <Y>2</Y>
         <Z>1</Z>
       </InventorySize>
-      <CriticalComponent Subtype="SteelPlate" Index="0" />
       <EdgeType>Light</EdgeType>
       <BuildTimeSeconds>15</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
@@ -125,7 +160,6 @@
       <DestroyEffect>BlockDestroyedExplosion_Large</DestroyEffect>
       <DestroySound>WepSmallWarheadExpl</DestroySound>
       <PCU>100</PCU>
-      <IsAirTight>false</IsAirTight>
     </Definition>
   </CubeBlocks>
 </Definitions>

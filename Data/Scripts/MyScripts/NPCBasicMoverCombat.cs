@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using ParallelTasks;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using VRage.Game;
@@ -162,7 +163,7 @@ namespace NPCMod {
             MyParticleEffect effect;
             if (MyParticlesManager.TryCreateParticleEffect("Muzzle_Flash_NPC", ref matrix, ref pos, uint.MaxValue, out effect)) {
                 effect.Play();
-                effect.Loop = false;
+                //effect.Loop = false;
             }
         }
 

@@ -42,7 +42,7 @@ namespace NPCMod {
         }
 
         public Vector3 getMuzzlePosition() {
-            return grid.GetPosition() + grid.WorldMatrix.Up * 1.5f - grid.WorldMatrix.Forward * 0.6f;
+            return grid.GetPosition() + grid.WorldMatrix.Up * 1.2f - grid.WorldMatrix.Forward * 0.6f;
         }
 
         public float getSpeed(MovementMode mode) {

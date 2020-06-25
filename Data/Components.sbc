@@ -43,7 +43,7 @@
                 <SubtypeId>NPC_Token_Basic</SubtypeId>
             </Id>
             <DisplayName>Mercenary Engineer Contract</DisplayName>
-            <Icon>Textures\GUI\Icons\component\construction_components_component.dds</Icon>
+            <Icon>Textures\GUI\Icons\NPC_Basic_Token.png</Icon>
             <Size>
                 <X>0.2</X>
                 <Y>0.1</Y>
@@ -70,7 +70,7 @@
                 <SubtypeId>NPC_Token_Elite</SubtypeId>
             </Id>
             <DisplayName>Mercenary Elite Contract</DisplayName>
-            <Icon>Textures\GUI\Icons\component\construction_components_component.dds</Icon>
+            <Icon>Textures\GUI\Icons\NPC_Elite_Token.png</Icon>
             <Size>
                 <X>0.2</X>
                 <Y>0.1</Y>
