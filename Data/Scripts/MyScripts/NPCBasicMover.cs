@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml.Schema;
 using Sandbox.ModAPI;
 using VRage.Game;
 using VRage.Game.Components;
@@ -249,7 +250,10 @@ namespace NPCMod {
             var isEnemy = faction.IsEnemy(entityOwner);
 
             var dist = Vector3.Distance(position, entity.GetPosition());
-            if (dist < range && isEnemy) {
+
+            var hasLOS = hasDirectLOS(position, entity.WorldAABB.Center, entity);
+            
+            if (dist < range && isEnemy && hasLOS) {
                 {
                     findNearbyEnemy1 = entity;
                     return true;
@@ -276,7 +280,6 @@ namespace NPCMod {
                 hasTarget = false;
             }
 
-            var downRayTarget = ownPos + down * 1.5f;
             var forwardDir = gridWorldMatrix.Backward;
 
             List<IHitInfo> hits = new List<IHitInfo>();
@@ -284,25 +287,37 @@ namespace NPCMod {
 
             if (MainNPCLoop.ticks % 10 == 0 || cachedSurfaceHit == null) {
                 //TODO raycasts parallel/async using asyncraycast or parallelfor later
-                MyAPIGateway.Physics.CastRay(ownPos - down * 0.3f, downRayTarget, hits);
+                var from = ownPos - down * 0.3f;
+                var downRayTarget = ownPos + down * 1.5f;
+                //MyAPIGateway.Physics.CastRay(ownPos - down * 0.3f, downRayTarget, hits);
+                MyAPIGateway.Physics.CastRayParallel(ref from, ref downRayTarget, 0, floorCheckCallback);
                 skipCast = false;
-                flying = hits.Count == 0;
+                //flying = hits.Count == 0;
             }
 
-            if ((hits.Count > 0 || skipCast) && !flying) {
-                doValidMoment(skipCast, hits, grid, forwardDir, hasTarget, ownPos);
+            if (/*(hits.Count > 0 || skipCast) &&*/ !flying) {
+                doValidMoment(/*skipCast, hits, */grid, forwardDir, hasTarget, ownPos);
             }
             else {
                 animator.relativeMoveSpeed = 0f;
             }
         }
 
-        private void doValidMoment(bool skipCast, List<IHitInfo> hits, IMyCubeGrid grid, Vector3D forwardDir,
+        private void floorCheckCallback(IHitInfo obj) {
+            flying = obj == null;
+            if (!flying) {
+                cachedSurfaceHit = obj;
+            }
+        }
+
+
+        private void doValidMoment(/*bool skipCast, List<IHitInfo> hits, */IMyCubeGrid grid, Vector3D forwardDir,
             bool hasTarget,
             Vector3D ownPos) {
-            if (!skipCast) {
+            
+            /*if (!skipCast) {
                 cachedSurfaceHit = hits[0];
-            }
+            }*/
 
             rotateRelativeToGround(cachedSurfaceHit.Normal, grid);
 

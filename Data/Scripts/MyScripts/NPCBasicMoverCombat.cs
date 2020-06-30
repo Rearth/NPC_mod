@@ -57,16 +57,16 @@ namespace NPCMod {
             }
         }
 
-        private bool hasDirectLOS(Vector3 pos, IMyEntity targetEntity) {
+        protected static bool hasDirectLOS(Vector3 from, Vector3 to, IMyEntity targetEntity) {
             List<IHitInfo> hits = new List<IHitInfo>();
-            MyAPIGateway.Physics.CastRay(animator.getMuzzlePosition(), pos, hits);
+            MyAPIGateway.Physics.CastRay(from, to, hits);
 
             if (hits.Count > 0) {
                 var hitInfo = hits[0];
                 var entity = hitInfo.HitEntity;
 
-                var clearLOS = entity.Equals(targetEntity);
-                return clearLOS;
+                var clearLos = entity.Equals(targetEntity);
+                return clearLos;
             }
 
             return false;
@@ -88,7 +88,7 @@ namespace NPCMod {
                 if (targetedBlock != null) {
                     var pos = grid.GridIntegerToWorld(targetedBlock.Position);
                     if (targetedBlock.FatBlock != null) pos = targetedBlock.FatBlock.WorldAABB.Center;
-                    if (hasDirectLOS(pos, activeEnemy))
+                    if (hasDirectLOS(animator.getMuzzlePosition(), pos, activeEnemy))
                         return pos;
                 }
             }
@@ -163,6 +163,7 @@ namespace NPCMod {
             MyParticleEffect effect;
             if (MyParticlesManager.TryCreateParticleEffect("Muzzle_Flash_NPC", ref matrix, ref pos, uint.MaxValue, out effect)) {
                 effect.Play();
+                //effect.Velocity = animator.grid.Physics.LinearVelocity;
                 //effect.Loop = false;
             }
         }

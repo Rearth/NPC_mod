@@ -8,7 +8,7 @@
 	</Id> 
 	<AlphaMistingEnable>false</AlphaMistingEnable>
 	<CanBeAffectedByOtherLights>false</CanBeAffectedByOtherLights>
-	<Emissivity>5</Emissivity>
+	<Emissivity>15</Emissivity>
     <AlphaSaturation>1</AlphaSaturation>
 	<Reflection>false</Reflection>
 	<IgnoreDepth>false</IgnoreDepth>
