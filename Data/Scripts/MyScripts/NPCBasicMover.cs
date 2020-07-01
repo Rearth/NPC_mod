@@ -251,9 +251,10 @@ namespace NPCMod {
 
             var dist = Vector3.Distance(position, entity.GetPosition());
 
-            var hasLOS = hasDirectLOS(position, entity.WorldAABB.Center, entity);
+            //moved directly into if-clause for performance
+            //var hasLOS = hasDirectLOS(position, entity.WorldAABB.Center, entity);
             
-            if (dist < range && isEnemy && hasLOS) {
+            if (dist < range && isEnemy && hasDirectLOS(position, entity.WorldAABB.Center, entity)) {
                 {
                     findNearbyEnemy1 = entity;
                     return true;

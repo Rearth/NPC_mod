@@ -15,6 +15,9 @@ using IMyEntity = VRage.ModAPI.IMyEntity;
 using IMySlimBlock = VRage.Game.ModAPI.IMySlimBlock;
 
 namespace NPCMod {
+    
+    
+    //mostly obsolete class, now only used for statics
     [MySessionComponentDescriptor(MyUpdateOrder.AfterSimulation)]
     public class MainNPCLoop : MySessionComponentBase {
         public static int ticks = 0;

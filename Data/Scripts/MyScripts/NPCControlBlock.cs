@@ -48,6 +48,7 @@ namespace NPCMod {
         private int targetCount;
         private int spawnProgress;
         private string npc_subtype;
+        internal bool isActive = true;
 
         //delete marker
         private int deleteMarkerAt;
@@ -82,6 +83,8 @@ namespace NPCMod {
             if (terminalBlock != null) terminalBlock.AppendingCustomInfo += addcustomInfo;
             if (block.BlockDefinition.SubtypeId.Equals("NPC_Control_block")) npc_subtype = "NPC_Basic";
             if (block.BlockDefinition.SubtypeId.Equals("NPC_Control_elite")) npc_subtype = "NPC_Elite";
+
+            if (terminalBlock != null) terminalBlock.CustomDataChanged += onCustomDataChanged;
         }
 
 //        private void addStoreTrades() {
@@ -111,6 +114,7 @@ namespace NPCMod {
 //        }
 
         public override void UpdateAfterSimulation() {
+            if (!isActive) return;
             //addStoreTrades();
             foreach (var npc in npcsSpawned) {
                 try {
@@ -133,7 +137,9 @@ namespace NPCMod {
                 }
             }
 
-            if (ticks < 6) return;
+            if (ticks % 600 == 0) saveSettings();
+
+            if (ticks < 6 || !isActive) return;
 
             updateNPCSpawn();
             updateNPCList();
@@ -158,9 +164,8 @@ namespace NPCMod {
                     break;
             }
 
-            updateTerminalInformation();
-
-            if (ticks % 600 == 0) saveSettings();
+            if (ticks % 30 == 0)
+                updateTerminalInformation();
         }
 
         private void updateNPCSpawn() {
@@ -237,6 +242,59 @@ namespace NPCMod {
             details.Clear();
             var text = readStorage(terminalBlock, TerminalGroupSelector.NPCTEXTGUID);
             details.Append(text);
+        }
+
+        private void onCustomDataChanged(IMyTerminalBlock obj) {
+            var input = obj.CustomData;
+            Vector3 point;
+            if (input.StartsWith("attack:") && isValidPoint(input.Substring("attack:".Length), out point)) {
+                //got attack command with point
+                TerminalGroupSelector.OnItemSelected(obj, "1");
+                resetData();
+                deleteOldWaypoints(true);
+                selectedMode = NPCMode.attack;
+                attackPoint = point;
+                settingsChanged();
+            } else if (input.StartsWith("guard:") && isValidPoint(input.Substring("guard:".Length), out point)) {
+                //got guard command with point
+                TerminalGroupSelector.OnItemSelected(obj, "2");
+                resetData();
+                deleteOldWaypoints(true);
+                selectedMode = NPCMode.stand;
+                standPoint = point;
+                settingsChanged();
+            }
+            
+            updateTerminalInformation();
+        }
+
+        private bool isValidPoint(string coords, out Vector3 point) {
+            point = new Vector3();
+            var parts = coords.Split(':');
+            if (parts.Length != 3) return false;
+
+            int i = 0;
+            foreach (var part in parts) {
+                float parsed;
+                var canParse = float.TryParse(part, out parsed);
+                if (!canParse) {
+                    return false;
+                }
+                switch (i) {
+                    case 0:
+                        point.X = parsed;
+                        break;
+                    case 1:
+                        point.Y = parsed;
+                        break;
+                    case 2:
+                        point.Z = parsed;
+                        break;
+                }
+                i++;
+            }
+
+            return true;
         }
 
         private void updateInput() {
@@ -392,7 +450,8 @@ namespace NPCMod {
         private void updateNPCList() {
             var toRemove = new List<NPCBasicMover>();
             foreach (var elem in npcsSpawned) {
-                if (!elem.isValid()) toRemove.Add(elem);
+                var dist = Vector3.Distance(block.WorldMatrix.Translation, elem.animator.grid.WorldMatrix.Translation);
+                if (dist > 3000 || !elem.isValid()) toRemove.Add(elem);
             }
 
             foreach (var elem in toRemove) {
@@ -507,19 +566,21 @@ namespace NPCMod {
             [ProtoMember(5)] public Vector3 attackPoint;
             [ProtoMember(6)] public List<Vector3> spawnLocations;
             [ProtoMember(7)] public int targetCount;
+            [ProtoMember(8)] public bool isActive;
 
             public settingsData() {
             }
 
             public settingsData(NPCMode selectedMode, Dictionary<int, Vector3> offsets,
                 Dictionary<int, int> patrolProgress, List<Vector3> patrolPoints,
-                Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations, int targetCount) {
+                Vector3 standPoint, Vector3 attackPoint, List<Vector3> spawnLocations, int targetCount, bool isActive) {
                 this.selectedMode = selectedMode;
                 this.patrolPoints = patrolPoints;
                 this.standPoint = standPoint;
                 this.attackPoint = attackPoint;
                 this.spawnLocations = spawnLocations;
                 this.targetCount = targetCount;
+                this.isActive = isActive;
 
                 var datas = new List<serializableNPCData>();
                 foreach (var elem in offsets) {
@@ -536,10 +597,10 @@ namespace NPCMod {
 
         private void saveSettings() {
             try {
-                var spawnLocations = npcsSpawned.Select(elem => elem.animator.grid.GetPosition())
+                var spawnLocations = npcsSpawned.Select(elem => worldToLocalPos(block, elem.animator.grid.GetPosition()))
                     .Select(dummy => (Vector3) dummy).ToList();
                 var settings = new settingsData(selectedMode, offsets, patrolProgress,
-                    patrolPoints, standPoint, attackPoint, spawnLocations, targetCount);
+                    patrolPoints, standPoint, attackPoint, spawnLocations, targetCount, isActive);
                 var text = Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(settings));
 
                 writeStorage((IMyTerminalBlock) block, SETTINGSGUID, text);
@@ -561,6 +622,7 @@ namespace NPCMod {
             standPoint = res.standPoint;
             attackPoint = res.attackPoint;
             targetCount = res.targetCount;
+            this.isActive = res.isActive;
 
             foreach (var data in res.data) {
                 offsets[data.id] = data.offset;
@@ -568,7 +630,7 @@ namespace NPCMod {
             }
 
             foreach (var point in res.spawnLocations) {
-                createNPCatPos(point, npc_subtype);
+                createNPCatPos(localToWorldPos(block, point), npc_subtype);
             }
 
             block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();

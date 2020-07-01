@@ -30,6 +30,17 @@ namespace NPCMod {
 
         public static void createControls() {
             MyLog.Default.WriteLine("creating controls for npc controller");
+
+            createTerminalActions();
+
+            var activeSelection = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlOnOffSwitch, IMyCargoContainer>("NPC_Control_block");
+            activeSelection.Title = MyStringId.GetOrCompute("Active: ");
+            activeSelection.OnText = MyStringId.GetOrCompute("On");
+            activeSelection.OffText = MyStringId.GetOrCompute("Off");
+            activeSelection.Getter = getIsActive;
+            activeSelection.Setter = setBlockActive;
+            activeSelection.Visible = isNPCControlBlock;
+
             var groupSelection = MyAPIGateway.TerminalControls
                 .CreateControl<IMyTerminalControlCombobox, IMyCargoContainer>(
                     "NPC_Control_block");
@@ -64,17 +75,78 @@ namespace NPCMod {
             stopRecord.Action = OnStopRecord;
             stopRecord.Enabled = stopRecordEnabled;
             stopRecord.Visible = isNPCControlBlock;
-
+            
+            MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(activeSelection);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(groupSelection);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(spawnButton);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(recordPoints);
             MyAPIGateway.TerminalControls.AddControl<IMyCargoContainer>(stopRecord);
         }
 
+        private static void createTerminalActions() {
+            var activeAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block_toggle_active_toggle");
+            activeAction.Name = new StringBuilder("Toggle Active");
+            activeAction.ValidForGroups = true;
+            activeAction.Action = toggleBlockActive;
+            activeAction.Enabled = isNPCControlBlock;
+            activeAction.Icon = "Textures\\GUI\\Icons\\Actions\\Toggle.dds";
+            activeAction.Writer = getActiveText;
+
+            var activeActionOn = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block_toggle_active_on");
+            activeActionOn.Name = new StringBuilder("Activate");
+            activeActionOn.ValidForGroups = true;
+            activeActionOn.Action = block => setBlockActive(block, true);
+            activeActionOn.Enabled = isNPCControlBlock;
+            activeActionOn.Icon = "Textures\\GUI\\Icons\\Actions\\SwitchOn.dds";
+            activeActionOn.Writer = getActiveText;
+
+            var activeActionOff = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block_toggle_active_off");
+            activeActionOff.Name = new StringBuilder("Deactivate");
+            activeActionOff.ValidForGroups = true;
+            activeActionOff.Action = block => setBlockActive(block, false);
+            activeActionOff.Enabled = isNPCControlBlock;
+            activeActionOff.Icon = "Textures\\GUI\\Icons\\Actions\\SwitchOff.dds";
+            activeActionOff.Writer = getActiveText;
+
+            var spawnAction = MyAPIGateway.TerminalControls.CreateAction<IMyCargoContainer>("NPC_Control_block_spawn");
+            spawnAction.Name = new StringBuilder("Recruit NPC");
+            spawnAction.ValidForGroups = true;
+            spawnAction.Action = OnSpawnClicked;
+            spawnAction.Enabled = block => isNPCControlBlock(block) && spawnEnabled(block);
+            spawnAction.Icon = "Textures\\GUI\\Icons\\Actions\\CharacterToggle.dds";
+
+            MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(activeAction);
+            MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(activeActionOn);
+            MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(activeActionOff);
+            MyAPIGateway.TerminalControls.AddAction<IMyCargoContainer>(spawnAction);
+        }
+
+        private static void getActiveText(IMyTerminalBlock arg, StringBuilder builder) {
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+            builder.Append(control.isActive ? "On" : "Off");
+        }
+
+        private static void toggleBlockActive(IMyTerminalBlock arg) {
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+            control.isActive = !control.isActive;
+            control.settingsChanged();
+        }
+
         private static bool isNPCControlBlock(IMyTerminalBlock arg) {
             
             var control = arg.GameLogic.GetAs<NPCControlBlock>();
             return control != null;
+        }
+
+        private static void setBlockActive(IMyTerminalBlock arg, bool enabled) {
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+            control.isActive = enabled;
+            control.settingsChanged();
+        }
+
+        private static bool getIsActive(IMyTerminalBlock arg) {
+            var control = arg.GameLogic.GetAs<NPCControlBlock>();
+            return control != null && control.isActive;
         }
 
         private static bool spawnEnabled(IMyTerminalBlock arg) {
@@ -136,7 +208,7 @@ namespace NPCMod {
             obj.Add(new MyTerminalControlComboBoxItem() {Key = 3L, Value = MyStringId.GetOrCompute("Follow player")});
         }
 
-        private static void OnItemSelected(IMyTerminalBlock block, string selected) {
+        public static void OnItemSelected(IMyTerminalBlock block, string selected) {
             MyLog.Default.WriteLine("selected: " + selected + " on " + block);
             NPCControlBlock.writeStorage(block, NPCMODEGUID, selected);
             block.GameLogic.GetAs<NPCControlBlock>()?.settingsChanged();
@@ -168,32 +240,6 @@ namespace NPCMod {
             if (selectedItemList.Count < 1) {
                 selectedItemList.Add(standGuard);
                 OnItemSelected(myTerminalBlock, standGuard.Text.String);
-            }
-        }
-
-        public static Vector3 HsvToRgb(Vector3 hsv) {
-            float num1 = hsv.X * 360f;
-            float y = hsv.Y;
-            double z = (double) hsv.Z;
-            int num2 = Convert.ToInt32(Math.Floor((double) num1 / 60.0)) % 6;
-            float num3 = (float) ((double) num1 / 60.0 - Math.Floor((double) num1 / 60.0));
-            float num4 = (float) z;
-            float num5 = (float) (z * (1.0 - (double) y));
-            float num6 = (float) (z * (1.0 - (double) num3 * (double) y));
-            float num7 = (float) (z * (1.0 - (1.0 - (double) num3) * (double) y));
-            switch (num2) {
-                case 0:
-                    return new Vector3(num4, num7, num5);
-                case 1:
-                    return new Vector3(num6, num4, num5);
-                case 2:
-                    return new Vector3(num5, num4, num7);
-                case 3:
-                    return new Vector3(num5, num6, num4);
-                case 4:
-                    return new Vector3(num7, num5, num4);
-                default:
-                    return new Vector3(num4, num5, num6);
             }
         }
     }
