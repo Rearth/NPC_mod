@@ -30,6 +30,8 @@ namespace NPCMod {
         public int stuckTimer;
         public bool wasStuck;
         private readonly float useForce;
+        internal Vector3 gravityCache = Vector3.Zero;
+        private bool isInArtificialGravity = false;
 
         private IMyCubeBlock relativeTo;
 
@@ -73,12 +75,31 @@ namespace NPCMod {
             
             if (MainNPCLoop.DEBUG) animator.grid.Physics.DebugDraw();
 
+            updateGravity();
+
             updateWaypoints();
 
             animator.updateRender(movementMode);
 
             updateCombat();
             updateMovement();
+        }
+
+        private void updateGravity() {
+            var pos = animator.grid.WorldAABB.Center;
+            
+            if (isInArtificialGravity)
+                animator.grid.Physics.AddForce(MyPhysicsForceType.APPLY_WORLD_FORCE, gravityCache * 100, pos, null);
+            
+            //reload cache?
+            if (lifetime % 5 == 2 && gravityCache.Equals(Vector3.Zero) || lifetime % 300 == 0) {
+                float naturalGravityMultiplier;
+                var naturalGravity = MyAPIGateway.Physics.CalculateNaturalGravityAt(pos, out naturalGravityMultiplier);
+                var artificialGravity = MyAPIGateway.Physics.CalculateArtificialGravityAt(pos, naturalGravityMultiplier);
+                isInArtificialGravity = artificialGravity.Length() > naturalGravity.Length();
+                gravityCache = naturalGravity + artificialGravity;
+            }
+
         }
 
         internal void updateWaypoints() {
@@ -264,6 +285,10 @@ namespace NPCMod {
             return false;
         }
 
+        private Vector3 getGravity() {
+            return gravityCache;
+        }
+
         private void updateMovement() {
             bool hasTarget = !CurrentMovementTarget.Equals(Vector3.Zero);
 
@@ -272,7 +297,7 @@ namespace NPCMod {
             var gridWorldMatrix = grid.WorldMatrix;
 
             var ownPos = grid.WorldMatrix.Translation;
-            var down = grid.Physics.Gravity;
+            var down = getGravity();
             down.Normalize();
             if (relativeTo != null)
                 NPCBasicMover.drawDebugLine(ownPos, CurrentMovementTarget, Color.Gold);
@@ -365,9 +390,8 @@ namespace NPCMod {
                 animator.grid.Physics.DebugDraw();
         }
 
-        public static Vector3 toSurfacePos(Vector3 point, IMyEntity grid, Vector3 fallback) {
+        public static Vector3 toSurfacePos(Vector3 point, IMyEntity grid, Vector3 fallback, Vector3 grav) {
             List<IHitInfo> hits = new List<IHitInfo>();
-            var grav = grid.Physics.Gravity;
             grav.Normalize();
             var from = point + grav * 5;
             var to = point - grav * 15;
@@ -419,7 +443,7 @@ namespace NPCMod {
             if (findFirstNonNPC(hits, out hit)) {
                 //found something blocking, check if too steep
                 target = castFrom + (hit.Position - castFrom) * 0.9f;
-                return (getAngleBetweenVectors(hit.Normal, -grid.Physics.Gravity) * 180 / Math.PI < 44);
+                return (getAngleBetweenVectors(hit.Normal, -getGravity()) * 180 / Math.PI < 44);
             }
 
             //nothing blocking
@@ -467,10 +491,11 @@ namespace NPCMod {
             up.Normalize();
 
             var gridWorldMatrix = grid.WorldMatrix;
+            var grav = getGravity();
 
             //check if terrain is too steep, if yes, then align to gravity
-            if (getAngleBetweenVectors(up, -grid.Physics.Gravity) * 180 / Math.PI > 45) {
-                up = -grid.Physics.Gravity;
+            if (getAngleBetweenVectors(up, -grav) * 180 / Math.PI > 45) {
+                up = -grav;
             }
 
             var newRot = Vector3.Lerp(gridWorldMatrix.Up, up, 0.6f);

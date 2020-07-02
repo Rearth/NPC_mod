@@ -29,10 +29,11 @@
       <EdgeType>Light</EdgeType>
       <PhysicsOption>Convex</PhysicsOption>
       <IsAirTight>false</IsAirTight>
-      <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
-      <DamagedSound>ParticleHeavyMech</DamagedSound>
+      <DamageEffectName>Blood_Spider</DamageEffectName>
+      <DamagedSound>PlayVocPain</DamagedSound>
       <DestroyEffect>BlockDestroyedExplosion_Small</DestroyEffect>
-      <DestroySound>WepSmallWarheadExpl</DestroySound>
+      <DestroySound>PlayVocDeath</DestroySound>
+      <VirtualMass>500</VirtualMass>
     </Definition>
     <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
       <Id>
@@ -56,11 +57,13 @@
       <EdgeType>Light</EdgeType>
       <PhysicsOption>Convex</PhysicsOption>
       <IsAirTight>false</IsAirTight>
-      <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
-      <DamagedSound>ParticleHeavyMech</DamagedSound>
+      <DamageEffectName>Blood_Spider</DamageEffectName>
+      <DamagedSound>PlayVocPain</DamagedSound>
       <DestroyEffect>BlockDestroyedExplosion_Small</DestroyEffect>
-      <DestroySound>WepSmallWarheadExpl</DestroySound>
+      <DestroySound>PlayVocDeath</DestroySound>
+      <VirtualMass>500</VirtualMass>
     </Definition>
+
     <Definition xsi:type="MyObjectBuilder_CargoContainerDefinition">
       <Id>
         <TypeId>CargoContainer</TypeId>
@@ -154,7 +157,7 @@
         <Z>1</Z>
       </InventorySize>
       <EdgeType>Light</EdgeType>
-      <BuildTimeSeconds>15</BuildTimeSeconds>
+      <BuildTimeSeconds>60</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
       <DamagedSound>ParticleHeavyMech</DamagedSound>
       <DestroyEffect>BlockDestroyedExplosion_Large</DestroyEffect>

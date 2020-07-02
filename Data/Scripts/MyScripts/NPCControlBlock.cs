@@ -225,7 +225,9 @@ namespace NPCMod {
 
         private void followPlayer(IMyCubeBlock myCubeBlock) {
             var playerPos = MyAPIGateway.Session.Player.GetPosition();
-            playerPos = NPCBasicMover.toSurfacePos(playerPos, MyAPIGateway.Session.Player.Character, playerPos);
+            var gravity = Vector3.Down;
+            if (npcsSpawned.Count > 0) gravity = npcsSpawned.First().gravityCache;
+            playerPos = NPCBasicMover.toSurfacePos(playerPos, MyAPIGateway.Session.Player.Character, playerPos, gravity);
             foreach (var npc in npcsSpawned) {
                 var offset = offsets[npc.ID];
                 var npcPositionTarget = playerPos + offset;
